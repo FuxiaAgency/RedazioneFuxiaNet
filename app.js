@@ -199,7 +199,8 @@ function render(){if(!S.started)return;renderMast();
   if(S.view==='menabo')return main.replaceChildren(renderMenabo());
   if(S.view==='riepilogo')return main.replaceChildren(renderRiepilogo());
   if(S.view==='squadra')return main.replaceChildren(renderSquadra());
-  if(S.view==='appunti')return main.replaceChildren(renderAppunti());
+  if(S.view==='appunti'){const ae=document.activeElement,fid=ae&&ae.id,ss=ae&&ae.selectionStart,se=ae&&ae.selectionEnd;
+    main.replaceChildren(renderAppunti());if(fid){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(ss,se)}catch(e){}}}return}
   const f=document.activeElement&&document.activeElement.id==='cerca'?document.activeElement.selectionStart:null;
   main.replaceChildren(renderTavolo());
   if(f!=null){const i=document.getElementById('cerca');if(i){i.focus();try{i.setSelectionRange(f,f)}catch(e){}}}}
@@ -620,7 +621,18 @@ function renderAppunti(){const all=S.appunti.filter(apInView);
     Object.entries(AP_KINDS).map(([k,v])=>h('button',{style:'--c:'+v.c,'aria-pressed':String(S.apFilter===k),onclick:()=>{S.apFilter=S.apFilter===k?'tutti':k;render()}},v.l,' ',h('i',null,all.filter(a=>a.kind===k).length))),
     h('label',{class:'chk',style:'margin-left:auto'},h('input',{id:'ap-hide',type:'checkbox',checked:S.apHideDone||null,onchange:e=>{S.apHideDone=e.target.checked;render()}}),'Nascondi i fatti'));
   return h('div',null,top,intro,composer,chips,list.length?h('div',{class:'aplist'},list.map(apCard)):h('p',{class:'muted'},all.length?'Nessun appunto con questi filtri.':'Ancora nessun appunto. Scrivi il primo qui sopra.'))}
-function apCard(a){const k=AP_KINDS[a.kind]||AP_KINDS.promemoria;const mine=a.by===S.me.id;
+function apCanEdit(a){return S.me.canWrite&&(a.by===S.me.id||S.me.isDir)}
+function apEditForm(a){const d=S.apDraft;const k=AP_KINDS[d.kind]||AP_KINDS.promemoria;
+  const save=async()=>{const text=d.text.trim();if(!text){toast('L\'appunto non può essere vuoto.');return}
+    try{const r=await q(sb.from('appunti').update({kind:d.kind,text,link:d.link.trim(),testata:d.testata}).eq('id',a.id).select('id'));if(!r.length)throw{code:'perm'};
+      S.apEditing=null;S.apDraft=null;toast('Appunto modificato');loadAppunti()}catch(e){toast(errMsg(e))}};
+  return h('article',{class:'appunto editing',style:'--k:'+k.c},
+    h('div',{class:'kinds',role:'group','aria-label':'Tipo di appunto'},Object.entries(AP_KINDS).map(([kk,v])=>h('button',{type:'button',style:'--k:'+v.c,'aria-pressed':String(d.kind===kk),onclick:()=>{d.kind=kk;render()}},v.l))),
+    h('textarea',{id:'ap-edit-text','aria-label':'Testo dell\'appunto',value:d.text,oninput:e=>{d.text=e.target.value},style:'width:100%;min-height:110px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:8px;padding:10px;resize:vertical;font:inherit'}),
+    h('input',{id:'ap-edit-link',class:'quote',type:'url','aria-label':'Link',placeholder:'Link utile (facoltativo)',value:d.link,oninput:e=>{d.link=e.target.value},style:'width:100%'}),
+    h('div',{class:'filt',style:'gap:8px;flex-wrap:wrap'},h('span',null,'Testata'),h('div',{class:'tseg',role:'group','aria-label':'Testata'},[[null,'Entrambe'],['fuxia','Fuxia'],['rnv','RNV']].map(([kk,l])=>h('button',{type:'button',class:kk?'t-'+kk:'','aria-pressed':String(d.testata===kk),onclick:()=>{d.testata=kk;render()}},l)))),
+    h('div',{class:'ops'},h('button',{class:'btn primary sm',onclick:save},'Salva'),h('button',{class:'btn sm',onclick:()=>{S.apEditing=null;S.apDraft=null;render()}},'Annulla')))}
+function apCard(a){if(S.apEditing===a.id&&S.apDraft)return apEditForm(a);const k=AP_KINDS[a.kind]||AP_KINDS.promemoria;const mine=a.by===S.me.id;
   const act=p=>p.then(r=>{if(r&&r.error)throw r.error;loadAppunti()}).catch(e=>toast(errMsg(e)));
   const art=a.articleId&&S.articles.find(x=>x.id===a.articleId);
   return h('article',{class:'appunto'+(a.done?' done':''),style:'--k:'+k.c},
@@ -630,6 +642,7 @@ function apCard(a){const k=AP_KINDS[a.kind]||AP_KINDS.promemoria;const mine=a.by
     S.me.canWrite?h('div',{class:'ops'},
       h('button',{class:'btn sm',onclick:()=>act(sb.from('appunti').update({done:!a.done}).eq('id',a.id))},a.done?'Riapri':'✓ Fatto'),
       art?h('button',{class:'btn sm',onclick:()=>go('articolo',art.id)},'Apri l\'articolo'):h('button',{class:'btn sm',onclick:()=>apToArticle(a)},'Trasforma in articolo'),
+      apCanEdit(a)?h('button',{class:'btn sm',onclick:()=>{S.apEditing=a.id;S.apDraft={kind:a.kind,text:a.text,link:a.link||'',testata:a.testata||null};render();setTimeout(()=>{const t=document.getElementById('ap-edit-text');t&&t.focus()},0)}},'✎ Modifica'):null,
       h('div',{class:'spacer'}),
       mine||S.me.isDir?h('button',{class:'btn sm ghost',onclick:()=>act(sb.from('appunti').delete().eq('id',a.id))},'Elimina'):null):null)}
 async function apToArticle(a){let t=a.testata||(S.testata!=='tutte'?S.testata:null);

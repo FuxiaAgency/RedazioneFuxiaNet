@@ -409,3 +409,4 @@ figcaption .credit{font-family:var(--f-mono);font-size:11px;text-transform:upper
 .appunto .aplink{font-size:13px;color:var(--accent);overflow-wrap:anywhere}
 .appunto .ops{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .tseg button:not([class*="t-"])[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--sheet)}
+.appunto.editing{opacity:1;box-shadow:var(--shadow)}
