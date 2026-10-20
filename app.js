@@ -6,7 +6,7 @@ const STATI=[
   {k:'pronto',l:'Pronto',c:'var(--s-pronto)',hint:'In attesa del via libera del direttore'},
   {k:'pubblicato',l:'Pubblicato',c:'var(--s-pubblicato)',hint:'Visibili nell\'Edizione'}];
 const STATO=Object.fromEntries(STATI.map(s=>[s.k,s]));
-const SEZIONI=['Cronaca','Politica','Economia','Esteri','Cultura','Sport','Opinioni','Territorio','Scienza'];
+const SEZIONI=['Cronaca','Musica','Televisione','Cultura','Sport','Esteri','Opinioni','Territorio','Scienza'];
 const KINDS={nota:{l:'Nota',c:'var(--accent)'},suggerimento:{l:'Suggerimento',c:'var(--s-revisione)'},correzione:{l:'Correzione',c:'var(--pencil)'}};
 const BATTUTE_CARTELLA=1800;
 const TESTATE={
@@ -472,7 +472,7 @@ const uid=()=>Math.random().toString(36).slice(2,10);
 const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
 function mbDefault(){const pg=(title,kinds)=>({id:uid(),title,slots:kinds.map(kind=>({id:uid(),kind,articleId:null}))});
   return{date:todayISO(),pages:[pg('Prima pagina',['apertura','spalla','taglio']),pg('Cronaca',['apertura','taglio','breve','breve']),
-    pg('Politica ed Economia',['apertura','spalla','taglio']),pg('Cultura',['apertura','spalla']),pg('Sport',['apertura','taglio','breve'])]}}
+    pg('Musica e TV',['apertura','spalla','taglio']),pg('Cultura',['apertura','spalla']),pg('Sport',['apertura','taglio','breve'])]}}
 function where(aid){const out=[];for(const t of TK){const mb=S.menabi[t];if(!mb)continue;(mb.pages||[]).forEach((p,i)=>(p.slots||[]).forEach(s=>{if(s.articleId===aid)out.push({t,n:i+1,page:p.title,kind:s.kind})}))}return out}
 function mbOrder(t){const m=new Map();let i=0;const mb=S.menabi[t];if(mb)for(const p of mb.pages||[])for(const s of p.slots||[]){if(s.articleId&&!m.has(s.articleId))m.set(s.articleId,i);i++}return m}
 let mbChain=Promise.resolve();
