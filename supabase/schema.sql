@@ -262,3 +262,38 @@ do $$ begin
     alter publication supabase_realtime add table public.appunti;
   end if;
 end $$;
+
+-- ---------- Rubrica: contatti condivisi (aggiunta il 20/10/2026) ----------
+create table if not exists public.contatti (
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
+  role        text not null default '',
+  org         text not null default '',
+  phone       text not null default '',
+  phone2      text not null default '',
+  email       text not null default '',
+  website     text not null default '',
+  instagram   text not null default '',
+  facebook    text not null default '',
+  x           text not null default '',
+  address     text not null default '',
+  notes       text not null default '',
+  by_id       uuid references public.profiles(id) on delete set null,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+alter table public.contatti enable row level security;
+grant select, insert, update, delete on public.contatti to authenticated;
+drop policy if exists contatti_read   on public.contatti;
+drop policy if exists contatti_insert on public.contatti;
+drop policy if exists contatti_update on public.contatti;
+drop policy if exists contatti_delete on public.contatti;
+create policy contatti_read   on public.contatti for select to authenticated using (public.is_reader());
+create policy contatti_insert on public.contatti for insert to authenticated with check (public.is_member() and by_id = auth.uid());
+create policy contatti_update on public.contatti for update to authenticated using (public.is_member());
+create policy contatti_delete on public.contatti for delete to authenticated using (public.is_director() or by_id = auth.uid());
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'contatti') then
+    alter publication supabase_realtime add table public.contatti;
+  end if;
+end $$;

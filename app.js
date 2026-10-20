@@ -20,7 +20,7 @@ const tchip=t=>h('span',{class:'tchip t-'+t},TESTATE[t].short);
 function setTestata(t){S.testata=t;try{localStorage.setItem('redazione.testata',t)}catch(e){}document.documentElement.dataset.testata=t;render()}
 
 const S={me:{id:null,name:'',role:null,isDir:false,canWrite:false},team:[],
-  articles:[],photos:[],appunti:[],apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
+  articles:[],photos:[],appunti:[],contatti:[],rbQ:'',apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
   view:'tavolo',current:null,notes:[],editing:false,draft:null,
   filter:{q:'',mine:false},noteKind:'nota',hideResolved:false,
   lockTimer:null,saveTimer:null,saving:false,savePending:false,authMode:'login',installEvt:null};
@@ -52,11 +52,11 @@ async function loadPeople(){const d=await q(sb.from('profiles').select('*').orde
   if(me){S.me.name=me.name;S.me.role=me.role;S.me.isDir=me.role==='direttore';S.me.canWrite=me.role==='redattore'||me.role==='direttore';S.me.canRead=me.role!=='in_attesa'}
   if(was!==S.me.role){if(S.me.role==='in_attesa'){showWaiting();return}if(!S.started||was==='in_attesa'){enterApp();return}}
   render()}
-function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes(),loadAppunti()]).catch(e=>toast(errMsg(e)))}
+function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes(),loadAppunti(),loadContatti()]).catch(e=>toast(errMsg(e)))}
 let channel=null;
 function subscribe(){if(channel)return;const ra=later(loadArticles),rp=later(loadPhotos),rpe=later(loadPeople),rm=later(loadMenabo),rn=later(loadNotes,150);
   const on=(c,t,f)=>c.on('postgres_changes',{event:'*',schema:'public',table:t},f);
-  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));channel.subscribe()}
+  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));on(channel,'contatti',later(loadContatti));channel.subscribe()}
 /* ---------- accesso ---------- */
 function shell(){document.documentElement.dataset.testata=S.testata}
 async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.id;
@@ -64,7 +64,7 @@ async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.i
   if(!S.people[user.id]){showAuth('Profilo non trovato. Se il database è appena stato creato, esci e iscriviti di nuovo.');return}
   subscribe()}
 async function enterApp(){if(S.authMode==='newpass')return;S.started=true;shell();render();
-  try{await Promise.all([loadArticles(),loadPhotos(),loadMenabo()]);loadAppunti().catch(()=>{});if(S.view==='articolo')loadNotes()}catch(e){toast(errMsg(e))}}
+  try{await Promise.all([loadArticles(),loadPhotos(),loadMenabo()]);loadAppunti().catch(()=>{});loadContatti().catch(()=>{});if(S.view==='articolo')loadNotes()}catch(e){toast(errMsg(e))}}
 function authFrame(...kids){S.started=false;document.documentElement.dataset.testata='tutte';document.querySelector('.mast').hidden=true;
   document.getElementById('main').replaceChildren(h('div',{class:'auth'},h('div',{class:'auth-box'},
     h('div',{class:'auth-logos'},TK.map(k=>h('img',{src:TESTATE[k].logo,alt:TESTATE[k].name}))),h('div',{class:'auth-card'},kids))))}
@@ -181,7 +181,7 @@ function renderBody(text){const out=h('div',{class:'prose'});
 /* ---------- navigazione ---------- */
 function hashOf(view,id){return'#'+(view==='articolo'?'a-'+id:view)}
 function parseHash(){const s=(location.hash||'').slice(1);if(s.startsWith('a-'))return{view:'articolo',id:s.slice(2)};
-  return{view:['edizione','foto','tavolo','menabo','riepilogo','squadra','appunti'].includes(s)?s:'tavolo',id:null}}
+  return{view:['edizione','foto','tavolo','menabo','riepilogo','squadra','appunti','rubrica'].includes(s)?s:'tavolo',id:null}}
 function go(view,id,fromPop){
   if(S.editing&&!(view==='articolo'&&id===S.current))stopEdit();
   const changed=view!=='articolo'||id!==S.current;
@@ -199,6 +199,8 @@ function render(){if(!S.started)return;renderMast();
   if(S.view==='menabo')return main.replaceChildren(renderMenabo());
   if(S.view==='riepilogo')return main.replaceChildren(renderRiepilogo());
   if(S.view==='squadra')return main.replaceChildren(renderSquadra());
+  if(S.view==='rubrica'){const ae=document.activeElement,fid=ae&&ae.id,ss=ae&&ae.selectionStart;
+    main.replaceChildren(renderRubrica());if(fid){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(ss,ss)}catch(e){}}}return}
   if(S.view==='appunti'){const ae=document.activeElement,fid=ae&&ae.id,ss=ae&&ae.selectionStart,se=ae&&ae.selectionEnd;
     main.replaceChildren(renderAppunti());if(fid){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(ss,se)}catch(e){}}}return}
   const f=document.activeElement&&document.activeElement.id==='cerca'?document.activeElement.selectionStart:null;
@@ -210,7 +212,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
   const brand=h('div',{class:'brand-row'},T==='tutte'?h('div',{class:'logos'},TK.map(k=>h('img',{class:'logo-m',src:TESTATE[k].logo,alt:TESTATE[k].name}))):h('img',{class:'logo-m',src:TESTATE[T].logo,alt:TESTATE[T].name}),
     h('div',{class:'brand'},h('small',null,'Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
   const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
-  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('tavolo','Tavolo di lavoro'),tab('appunti','Appunti'),tab('riepilogo','Riepilogo'),tab('menabo','Menabò'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
+  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('tavolo','Tavolo di lavoro'),tab('appunti','Appunti'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('menabo','Menabò'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
     S.me.canWrite&&S.loaded?h('button',{class:'btn primary',onclick:newArticle},'＋ Nuovo articolo'):null,
@@ -652,6 +654,60 @@ async function apToArticle(a){let t=a.testata||(S.testata!=='tutte'?S.testata:nu
     await q(sb.from('appunti').update({article_id:row.id}).eq('id',a.id));
     const art=artFromRow(row);S.articles=[art,...S.articles.filter(x=>x.id!==art.id)];toast('Bozza creata dall\'appunto');go('articolo',art.id);startEdit(art);loadAppunti()}
   catch(e){toast(errMsg(e))}}
+
+/* ---------- rubrica: contatti condivisi ---------- */
+const CF=[['name','Nome e cognome','text','name'],['role','Ruolo o qualifica','text','organization-title'],['org','Ente, azienda o testata','text','organization'],
+  ['phone','Telefono','tel','tel'],['phone2','Altro telefono','tel','tel'],['email','Email','email','email'],['website','Sito web','url','url'],
+  ['instagram','Instagram','text',''],['facebook','Facebook','text',''],['x','X (Twitter)','text',''],['address','Indirizzo','text','street-address'],['notes','Note','textarea','']];
+async function loadContatti(){const d=await q(sb.from('contatti').select('*').order('name'));S.contatti=d;render()}
+function socialUrl(kind,v){v=String(v||'').trim();if(!v)return'';if(/^https?:\/\//i.test(v))return v;
+  if(/^(www\.)?(instagram|facebook|x|twitter)\.com\//i.test(v))return'https://'+v;
+  const hnd=v.replace(/^@/,'');return{instagram:'https://instagram.com/',facebook:'https://facebook.com/',x:'https://x.com/'}[kind]+encodeURIComponent(hnd)}
+function webUrl(v){v=String(v||'').trim();return!v?'':/^https?:\/\//i.test(v)?v:'https://'+v}
+const telHref=v=>'tel:'+String(v).replace(/[^\d+]/g,'');
+function cLinks(c){const L=[];
+  if(c.phone)L.push(h('a',{class:'clink',href:telHref(c.phone)},'📞 ',c.phone));
+  if(c.phone2)L.push(h('a',{class:'clink',href:telHref(c.phone2)},'📞 ',c.phone2));
+  if(c.email)L.push(h('a',{class:'clink',href:'mailto:'+c.email},'✉ ',c.email));
+  if(c.website)L.push(h('a',{class:'clink',href:webUrl(c.website),target:'_blank',rel:'noopener'},'🌐 Sito'));
+  if(c.instagram)L.push(h('a',{class:'clink',href:socialUrl('instagram',c.instagram),target:'_blank',rel:'noopener'},'Instagram'));
+  if(c.facebook)L.push(h('a',{class:'clink',href:socialUrl('facebook',c.facebook),target:'_blank',rel:'noopener'},'Facebook'));
+  if(c.x)L.push(h('a',{class:'clink',href:socialUrl('x',c.x),target:'_blank',rel:'noopener'},'X'));
+  if(c.address)L.push(h('a',{class:'clink',href:'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(c.address),target:'_blank',rel:'noopener'},'📍 Mappa'));
+  return L}
+function renderRubrica(){const qq=S.rbQ.trim().toLowerCase();
+  const list=S.contatti.filter(c=>!qq||CF.some(([k])=>String(c[k]||'').toLowerCase().includes(qq)));
+  const top=h('div',{class:'toolbar'},h('h1',null,'Rubrica'),h('span',{class:'muted'},S.contatti.length+' contatti'),h('div',{class:'spacer'}),
+    h('input',{id:'rb-cerca',class:'search',type:'search',placeholder:'Cerca nome, ente, telefono…',value:S.rbQ,oninput:e=>{S.rbQ=e.target.value;render()}}),
+    S.me.canWrite?h('button',{class:'btn primary',onclick:()=>contactModal(null)},'＋ Nuovo contatto'):null);
+  if(!S.contatti.length)return h('div',null,top,h('div',{class:'empty-state'},h('div',null,h('h2',null,'La rubrica è vuota'),
+    h('p',{class:'muted'},'Qui la redazione raccoglie i contatti utili: uffici stampa, artisti, locali, fonti. Ognuno con telefono, email, social, indirizzo e note.'),
+    S.me.canWrite?h('button',{class:'btn primary',onclick:()=>contactModal(null)},'＋ Aggiungi il primo contatto'):null)));
+  const groups={};for(const c of list){const L=(c.name||'?').trim().charAt(0).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');(groups[/[A-Z]/.test(L)?L:'#']=groups[/[A-Z]/.test(L)?L:'#']||[]).push(c)}
+  return h('div',null,top,list.length?Object.keys(groups).sort().map(L=>h('section',{class:'rbgroup'},h('div',{class:'rbletter'},L),h('div',{class:'rblist'},groups[L].map(contactCard))))
+    :h('p',{class:'muted'},'Nessun contatto trovato.'))}
+function contactCard(c){const sub=[c.role,c.org].filter(Boolean).join(' · ');
+  return h('article',{class:'contact'},
+    h('button',{class:'chead',onclick:()=>contactModal(c),'aria-label':'Apri '+(c.name||'contatto')},h('span',{class:'av ini',style:'background:'+colorFor(c.id)},initials(c.name)),
+      h('span',{class:'cname'},h('b',null,c.name||'Senza nome'),sub?h('span',null,sub):null)),
+    h('div',{class:'clinks'},cLinks(c)),
+    c.notes?h('div',{class:'cnotes'},c.notes):null)}
+function contactModal(c){const edit=S.me.canWrite;const d=Object.assign({},c||{});
+  modal({title:c?(edit?'Modifica contatto':c.name):'Nuovo contatto',body:close=>{
+    const fields=CF.map(([k,l,t,ac])=>{const id='c-'+k;const inp=t==='textarea'?h('textarea',{id,value:d[k]||'',rows:'4',oninput:e=>{d[k]=e.target.value},style:'width:100%;resize:vertical'})
+      :h('input',{id,type:t,value:d[k]||'',autocomplete:ac||'off',placeholder:k==='instagram'||k==='facebook'||k==='x'?'@nome oppure link':'',oninput:e=>{d[k]=e.target.value}});
+      if(!edit)inp.setAttribute('readonly','');return h('div',{class:'field'+(k==='notes'||k==='address'?' wide':'')},h('label',{for:id},l),inp)});
+    const canDel=c&&(S.me.isDir||c.by_id===S.me.id);let armed=false;
+    const del=canDel?h('button',{class:'btn danger',onclick:async()=>{if(!armed){armed=true;del.textContent='Conferma eliminazione';return}
+      try{const r=await q(sb.from('contatti').delete().eq('id',c.id).select('id'));if(!r.length)throw{code:'perm'};close();toast('Contatto eliminato');loadContatti()}catch(e){toast(errMsg(e))}}},'Elimina'):null;
+    const save=async()=>{const row={};for(const[k]of CF)row[k]=String(d[k]||'').trim();if(!row.name){toast('Scrivi almeno il nome.');document.getElementById('c-name').focus();return}
+      row.updated_at=new Date().toISOString();
+      try{if(c){const r=await q(sb.from('contatti').update(row).eq('id',c.id).select('id'));if(!r.length)throw{code:'perm'}}
+        else await q(sb.from('contatti').insert({...row,by_id:S.me.id}));close();toast(c?'Contatto aggiornato':'Contatto aggiunto');loadContatti()}catch(e){toast(errMsg(e))}};
+    return{body:h('div',null,c?h('div',{class:'clinks',style:'margin-bottom:14px'},cLinks(c)):null,h('div',{class:'cform'},fields),
+      c?h('p',{class:'muted',style:'font-size:12px;margin:12px 0 0'},'Aggiunto da '+pname(c.by_id)+(c.updated_at?' · aggiornato '+ago(ms(c.updated_at)):'')):null),
+      foot:[del,h('div',{class:'spacer'}),h('button',{class:'btn',onclick:close},edit?'Annulla':'Chiudi'),edit?h('button',{class:'btn primary',onclick:save},'Salva'):null]}}})
+  if(!c)setTimeout(()=>{const n=document.getElementById('c-name');n&&n.focus()},30)}
 
 /* ---------- avvio ---------- */
 async function boot(){

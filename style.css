@@ -410,3 +410,23 @@ figcaption .credit{font-family:var(--f-mono);font-size:11px;text-transform:upper
 .appunto .ops{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .tseg button:not([class*="t-"])[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--sheet)}
 .appunto.editing{opacity:1;box-shadow:var(--shadow)}
+
+/* Rubrica */
+.rbgroup{margin-bottom:18px}
+.rbletter{font-family:var(--f-ui);font-weight:700;font-size:20px;letter-spacing:.06em;margin:0 0 8px 4px}
+.rblist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.contact{--sheet:var(--s-sheet);--ink:var(--s-ink);--muted:var(--s-muted);--rule:var(--s-rule);--paper:var(--s-tint);--hover:var(--s-hover);--accent:var(--s-accent);
+  background:var(--sheet);color:var(--ink);border:1px solid var(--rule);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0}
+.chead{display:flex;align-items:center;gap:12px;background:none;border:0;padding:0;text-align:left;color:inherit;min-width:0}
+.chead .av{width:40px;height:40px;font-size:14px}
+.cname{display:grid;min-width:0}
+.cname b{font-size:16px;overflow-wrap:anywhere}
+.cname span{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.chead:hover b{color:var(--accent)}
+.clinks{display:flex;flex-wrap:wrap;gap:6px}
+.clink{display:inline-flex;align-items:center;gap:4px;font-size:13px;padding:5px 10px;border-radius:99px;background:var(--hover);color:var(--ink);text-decoration:none;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clink:hover{background:var(--accent-soft,var(--hover));color:var(--accent)}
+.cnotes{font-size:14px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere;border-top:1px solid var(--rule);padding-top:8px}
+.cform{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cform .wide{grid-column:1/-1}
+@media (max-width:560px){.cform{grid-template-columns:1fr}}
