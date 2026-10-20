@@ -6,7 +6,7 @@ const STATI=[
   {k:'pronto',l:'Pronto',c:'var(--s-pronto)',hint:'In attesa del via libera del direttore'},
   {k:'pubblicato',l:'Pubblicato',c:'var(--s-pubblicato)',hint:'Visibili nell\'Edizione'}];
 const STATO=Object.fromEntries(STATI.map(s=>[s.k,s]));
-const SEZIONI=['Cronaca','Musica','Televisione','Cultura','Sport','Esteri','Opinioni','Territorio','Scienza'];
+const SEZIONI=['Attualità','Cronaca','Musica','Televisione','Intrattenimento','Interviste','Cultura','Sport','Esteri','Opinioni','Territorio','Scienza'];
 const KINDS={nota:{l:'Nota',c:'var(--accent)'},suggerimento:{l:'Suggerimento',c:'var(--s-revisione)'},correzione:{l:'Correzione',c:'var(--pencil)'}};
 const BATTUTE_CARTELLA=1800;
 const TESTATE={
