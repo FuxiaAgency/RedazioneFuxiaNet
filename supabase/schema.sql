@@ -234,3 +234,31 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ---------- Appunti: blocco note condiviso (aggiunto il 20/10/2026) ----------
+create table if not exists public.appunti (
+  id          uuid primary key default gen_random_uuid(),
+  kind        text not null default 'promemoria' check (kind in ('promemoria','notizia','intervista','idea')),
+  text        text not null,
+  link        text not null default '',
+  testata     text check (testata in ('fuxia','rnv')),
+  done        boolean not null default false,
+  by_id       uuid references public.profiles(id) on delete set null,
+  article_id  uuid references public.articles(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+alter table public.appunti enable row level security;
+grant select, insert, update, delete on public.appunti to authenticated;
+drop policy if exists appunti_read   on public.appunti;
+drop policy if exists appunti_insert on public.appunti;
+drop policy if exists appunti_update on public.appunti;
+drop policy if exists appunti_delete on public.appunti;
+create policy appunti_read   on public.appunti for select to authenticated using (public.is_reader());
+create policy appunti_insert on public.appunti for insert to authenticated with check (public.is_member() and by_id = auth.uid());
+create policy appunti_update on public.appunti for update to authenticated using (public.is_member());
+create policy appunti_delete on public.appunti for delete to authenticated using (public.is_director() or by_id = auth.uid());
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'appunti') then
+    alter publication supabase_realtime add table public.appunti;
+  end if;
+end $$;

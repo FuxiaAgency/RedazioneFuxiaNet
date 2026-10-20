@@ -395,3 +395,17 @@ figcaption .credit{font-family:var(--f-mono);font-size:11px;text-transform:upper
 .ini{display:inline-grid;place-items:center;color:#fff;font-size:11px;font-weight:700;font-family:var(--f-body);letter-spacing:0}
 .me-btn{display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;color:inherit}
 .install{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* Appunti */
+.aplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.appunto{--sheet:var(--s-sheet);--ink:var(--s-ink);--muted:var(--s-muted);--rule:var(--s-rule);--paper:var(--s-tint);--hover:var(--s-hover);--accent:var(--s-accent);
+  background:var(--sheet);color:var(--ink);border:1px solid var(--rule);border-top:4px solid var(--k);border-radius:12px;padding:14px;display:grid;gap:10px;min-width:0}
+.appunto.done{opacity:.6}
+.appunto.done .txt{text-decoration:line-through;text-decoration-color:var(--muted)}
+.appunto .h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.appunto .h b{color:var(--ink)}
+.appunto .kind{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--k)}
+.appunto .txt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5}
+.appunto .aplink{font-size:13px;color:var(--accent);overflow-wrap:anywhere}
+.appunto .ops{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tseg button:not([class*="t-"])[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--sheet)}

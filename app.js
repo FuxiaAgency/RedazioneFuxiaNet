@@ -20,7 +20,7 @@ const tchip=t=>h('span',{class:'tchip t-'+t},TESTATE[t].short);
 function setTestata(t){S.testata=t;try{localStorage.setItem('redazione.testata',t)}catch(e){}document.documentElement.dataset.testata=t;render()}
 
 const S={me:{id:null,name:'',role:null,isDir:false,canWrite:false},team:[],
-  articles:[],photos:[],menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
+  articles:[],photos:[],appunti:[],apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
   view:'tavolo',current:null,notes:[],editing:false,draft:null,
   filter:{q:'',mine:false},noteKind:'nota',hideResolved:false,
   lockTimer:null,saveTimer:null,saving:false,savePending:false,authMode:'login',installEvt:null};
@@ -52,11 +52,11 @@ async function loadPeople(){const d=await q(sb.from('profiles').select('*').orde
   if(me){S.me.name=me.name;S.me.role=me.role;S.me.isDir=me.role==='direttore';S.me.canWrite=me.role==='redattore'||me.role==='direttore';S.me.canRead=me.role!=='in_attesa'}
   if(was!==S.me.role){if(S.me.role==='in_attesa'){showWaiting();return}if(!S.started||was==='in_attesa'){enterApp();return}}
   render()}
-function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes()]).catch(e=>toast(errMsg(e)))}
+function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes(),loadAppunti()]).catch(e=>toast(errMsg(e)))}
 let channel=null;
 function subscribe(){if(channel)return;const ra=later(loadArticles),rp=later(loadPhotos),rpe=later(loadPeople),rm=later(loadMenabo),rn=later(loadNotes,150);
   const on=(c,t,f)=>c.on('postgres_changes',{event:'*',schema:'public',table:t},f);
-  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);channel.subscribe()}
+  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));channel.subscribe()}
 /* ---------- accesso ---------- */
 function shell(){document.documentElement.dataset.testata=S.testata}
 async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.id;
@@ -64,7 +64,7 @@ async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.i
   if(!S.people[user.id]){showAuth('Profilo non trovato. Se il database è appena stato creato, esci e iscriviti di nuovo.');return}
   subscribe()}
 async function enterApp(){if(S.authMode==='newpass')return;S.started=true;shell();render();
-  try{await Promise.all([loadArticles(),loadPhotos(),loadMenabo()]);if(S.view==='articolo')loadNotes()}catch(e){toast(errMsg(e))}}
+  try{await Promise.all([loadArticles(),loadPhotos(),loadMenabo()]);loadAppunti().catch(()=>{});if(S.view==='articolo')loadNotes()}catch(e){toast(errMsg(e))}}
 function authFrame(...kids){S.started=false;document.documentElement.dataset.testata='tutte';document.querySelector('.mast').hidden=true;
   document.getElementById('main').replaceChildren(h('div',{class:'auth'},h('div',{class:'auth-box'},
     h('div',{class:'auth-logos'},TK.map(k=>h('img',{src:TESTATE[k].logo,alt:TESTATE[k].name}))),h('div',{class:'auth-card'},kids))))}
@@ -181,7 +181,7 @@ function renderBody(text){const out=h('div',{class:'prose'});
 /* ---------- navigazione ---------- */
 function hashOf(view,id){return'#'+(view==='articolo'?'a-'+id:view)}
 function parseHash(){const s=(location.hash||'').slice(1);if(s.startsWith('a-'))return{view:'articolo',id:s.slice(2)};
-  return{view:['edizione','foto','tavolo','menabo','riepilogo','squadra'].includes(s)?s:'tavolo',id:null}}
+  return{view:['edizione','foto','tavolo','menabo','riepilogo','squadra','appunti'].includes(s)?s:'tavolo',id:null}}
 function go(view,id,fromPop){
   if(S.editing&&!(view==='articolo'&&id===S.current))stopEdit();
   const changed=view!=='articolo'||id!==S.current;
@@ -199,6 +199,7 @@ function render(){if(!S.started)return;renderMast();
   if(S.view==='menabo')return main.replaceChildren(renderMenabo());
   if(S.view==='riepilogo')return main.replaceChildren(renderRiepilogo());
   if(S.view==='squadra')return main.replaceChildren(renderSquadra());
+  if(S.view==='appunti')return main.replaceChildren(renderAppunti());
   const f=document.activeElement&&document.activeElement.id==='cerca'?document.activeElement.selectionStart:null;
   main.replaceChildren(renderTavolo());
   if(f!=null){const i=document.getElementById('cerca');if(i){i.focus();try{i.setSelectionRange(f,f)}catch(e){}}}}
@@ -208,7 +209,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
   const brand=h('div',{class:'brand-row'},T==='tutte'?h('div',{class:'logos'},TK.map(k=>h('img',{class:'logo-m',src:TESTATE[k].logo,alt:TESTATE[k].name}))):h('img',{class:'logo-m',src:TESTATE[T].logo,alt:TESTATE[T].name}),
     h('div',{class:'brand'},h('small',null,'Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
   const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
-  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('tavolo','Tavolo di lavoro'),tab('riepilogo','Riepilogo'),tab('menabo','Menabò'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
+  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('tavolo','Tavolo di lavoro'),tab('appunti','Appunti'),tab('riepilogo','Riepilogo'),tab('menabo','Menabò'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
     S.me.canWrite&&S.loaded?h('button',{class:'btn primary',onclick:newArticle},'＋ Nuovo articolo'):null,
@@ -592,6 +593,52 @@ function modal({title,small,body}){const layer=document.getElementById('layer');
   const m=h('div',{class:'modal'+(small?' small':''),role:'dialog','aria-modal':'true','aria-label':title},
     h('header',null,h('h2',null,title),h('button',{class:'btn ghost sm','aria-label':'Chiudi',onclick:close},'✕')),h('div',{class:'body'},r.body),r.foot?h('footer',null,r.foot):null);
   layer.replaceChildren(h('div',{class:'overlay',onclick:e=>{if(e.target===e.currentTarget)close()}},m))}
+
+/* ---------- appunti: blocco note condiviso ---------- */
+const AP_KINDS={promemoria:{l:'Promemoria',c:'var(--s-correggere)',ph:'Es. Ricordiamoci di chiedere le foto all\'ufficio stampa'},
+  notizia:{l:'Notizia',c:'var(--s-accent)',ph:'Es. Apre un nuovo locale in centro sabato: vale un pezzo?'},
+  intervista:{l:'Intervista',c:'var(--s-pubblicato)',ph:'Es. Intervista al sindaco confermata per giovedì alle 11'},
+  idea:{l:'Idea',c:'var(--s-pronto)',ph:'Es. Rubrica settimanale sui ristoranti della città'}};
+async function loadAppunti(){const d=await q(sb.from('appunti').select('*').order('created_at',{ascending:false}).limit(500));
+  S.appunti=d.map(r=>({id:r.id,kind:r.kind,text:r.text,link:r.link,testata:r.testata,done:r.done,by:r.by_id,at:ms(r.created_at),articleId:r.article_id}));render()}
+function apInView(a){return S.testata==='tutte'||!a.testata||a.testata===S.testata}
+function renderAppunti(){const all=S.appunti.filter(apInView);
+  const list=all.filter(a=>(S.apFilter==='tutti'||a.kind===S.apFilter)&&(!S.apHideDone||!a.done));
+  const top=h('div',{class:'toolbar'},h('h1',null,'Appunti'),h('span',{class:'muted'},all.filter(a=>!a.done).length+' da fare · '+all.filter(a=>a.done).length+' fatti'));
+  const intro=h('p',{class:'muted',style:'margin:-6px 0 16px;max-width:70ch'},'Il blocco note della redazione: promemoria, notizie da seguire, interviste, idee. Tutti leggono tutto; quando un appunto diventa un pezzo, trasformalo in articolo con un tocco.');
+  const ta=h('textarea',{id:'ap-text',placeholder:AP_KINDS[S.apKind].ph,style:'width:100%;min-height:90px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:8px;padding:10px;resize:vertical'});
+  const link=h('input',{id:'ap-link',class:'quote',type:'url',placeholder:'Link utile (facoltativo)',style:'width:100%;margin-top:8px'});
+  const keep=()=>({t:ta.value,l:link.value});const restore=k=>{const t=document.getElementById('ap-text'),l=document.getElementById('ap-link');if(t){t.value=k.t;t.focus()}if(l)l.value=k.l};
+  const kinds=h('div',{class:'kinds',role:'group','aria-label':'Tipo di appunto'},Object.entries(AP_KINDS).map(([k,v])=>h('button',{type:'button',style:'--k:'+v.c,'aria-pressed':String(S.apKind===k),onclick:()=>{const kk=keep();S.apKind=k;render();restore(kk)}},v.l)));
+  const tsel=h('div',{class:'tseg',role:'group','aria-label':'Per quale testata'},[[null,'Entrambe'],['fuxia','Fuxia'],['rnv','RNV']].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String(S.apTestata===k),onclick:()=>{const kk=keep();S.apTestata=k;render();restore(kk)}},l)));
+  async function add(){const text=ta.value.trim();if(!text){ta.focus();return}
+    try{await q(sb.from('appunti').insert({kind:S.apKind,text,link:link.value.trim(),testata:S.apTestata,by_id:S.me.id}));ta.value='';link.value='';toast('Appunto aggiunto');loadAppunti()}catch(e){toast(errMsg(e))}}
+  const composer=S.me.canWrite?h('section',{class:'panel',style:'margin-bottom:18px'},h('h2',null,'Nuovo appunto'),
+    h('div',{class:'composer'},kinds,ta,link,h('div',{class:'row'},h('div',{class:'filt',style:'gap:8px'},h('span',null,'Testata'),tsel),h('button',{class:'btn primary sm',onclick:add},'Aggiungi')))):null;
+  const chips=h('div',{class:'chips',role:'group','aria-label':'Filtra'},
+    h('button',{'aria-pressed':String(S.apFilter==='tutti'),onclick:()=>{S.apFilter='tutti';render()}},'Tutti ',h('i',null,all.length)),
+    Object.entries(AP_KINDS).map(([k,v])=>h('button',{style:'--c:'+v.c,'aria-pressed':String(S.apFilter===k),onclick:()=>{S.apFilter=S.apFilter===k?'tutti':k;render()}},v.l,' ',h('i',null,all.filter(a=>a.kind===k).length))),
+    h('label',{class:'chk',style:'margin-left:auto'},h('input',{id:'ap-hide',type:'checkbox',checked:S.apHideDone||null,onchange:e=>{S.apHideDone=e.target.checked;render()}}),'Nascondi i fatti'));
+  return h('div',null,top,intro,composer,chips,list.length?h('div',{class:'aplist'},list.map(apCard)):h('p',{class:'muted'},all.length?'Nessun appunto con questi filtri.':'Ancora nessun appunto. Scrivi il primo qui sopra.'))}
+function apCard(a){const k=AP_KINDS[a.kind]||AP_KINDS.promemoria;const mine=a.by===S.me.id;
+  const act=p=>p.then(r=>{if(r&&r.error)throw r.error;loadAppunti()}).catch(e=>toast(errMsg(e)));
+  const art=a.articleId&&S.articles.find(x=>x.id===a.articleId);
+  return h('article',{class:'appunto'+(a.done?' done':''),style:'--k:'+k.c},
+    h('div',{class:'h'},h('span',{class:'kind'},k.l),a.testata?tchip(a.testata):null,avatar(a.by),h('b',null,pname(a.by)),h('span',null,ago(a.at))),
+    h('div',{class:'txt'},a.text),
+    a.link?h('a',{class:'aplink',href:/^https?:\/\//i.test(a.link)?a.link:'https://'+a.link,target:'_blank',rel:'noopener'},a.link):null,
+    S.me.canWrite?h('div',{class:'ops'},
+      h('button',{class:'btn sm',onclick:()=>act(sb.from('appunti').update({done:!a.done}).eq('id',a.id))},a.done?'Riapri':'✓ Fatto'),
+      art?h('button',{class:'btn sm',onclick:()=>go('articolo',art.id)},'Apri l\'articolo'):h('button',{class:'btn sm',onclick:()=>apToArticle(a)},'Trasforma in articolo'),
+      h('div',{class:'spacer'}),
+      mine||S.me.isDir?h('button',{class:'btn sm ghost',onclick:()=>act(sb.from('appunti').delete().eq('id',a.id))},'Elimina'):null):null)}
+async function apToArticle(a){let t=a.testata||(S.testata!=='tutte'?S.testata:null);
+  if(!t){modal({title:'Per quale testata?',small:true,body:close=>({body:h('div',{class:'tpick'},TK.map(k=>h('button',{type:'button',onclick:()=>{close();a.testata=k;apToArticle(a)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})});return}
+  const first=a.text.split('\n')[0].trim();const now=Date.now();
+  try{const row=await q(sb.from('articles').insert({testata:t,title:first.length<=120?first:first.slice(0,117)+'…',body:a.text+(a.link?'\n\nFonte: '+a.link:''),author_id:S.me.id,updated_by:S.me.id,history:[{s:'bozza',by:S.me.id,at:now}]}).select().single());
+    await q(sb.from('appunti').update({article_id:row.id}).eq('id',a.id));
+    const art=artFromRow(row);S.articles=[art,...S.articles.filter(x=>x.id!==art.id)];toast('Bozza creata dall\'appunto');go('articolo',art.id);startEdit(art);loadAppunti()}
+  catch(e){toast(errMsg(e))}}
 
 /* ---------- avvio ---------- */
 async function boot(){
