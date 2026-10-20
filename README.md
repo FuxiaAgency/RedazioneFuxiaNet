@@ -41,7 +41,7 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 
 ## Icona
 
-L'icona attuale è la "R" bianca su nero con linea oro e scritta REDAZIONE (icons/varianti/9.png). Le alternative sono in `icons/opt_fuxia.png` e `icons/opt_rnv.png`: per cambiarla vanno rigenerati `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `favicon-32.png` dall'opzione scelta.
+L'icona attuale è la "R" fucsia su nero con linea oro e scritta REDAZIONE (icons/varianti/10.png). Le alternative sono in `icons/opt_fuxia.png` e `icons/opt_rnv.png`: per cambiarla vanno rigenerati `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `favicon-32.png` dall'opzione scelta.
 
 ## Note per chi modifica il codice (anche Claude)
 
