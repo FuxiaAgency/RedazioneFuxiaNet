@@ -140,7 +140,7 @@ function ago(t){if(!t)return'';const d=(t-Date.now())/1000;const a=Math.abs(d);
   if(a<86400*7)return rtf.format(Math.round(d/86400),'day');return new Date(t).toLocaleDateString('it-IT',{day:'numeric',month:'short',year:'numeric'})}
 const fullDate=t=>t?new Date(t).toLocaleString('it-IT',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,3600)}
-const COLORS=['#e8025a','#14229a','#1f8a55','#d2560e','#6a3fd0','#0f8b8d','#b7791f','#c2126f','#2f6fd1','#7d6b75'];
+const COLORS=['#ec009c','#14229a','#1f8a55','#d2560e','#6a3fd0','#0f8b8d','#b7791f','#b8007a','#2f6fd1','#7d6b75'];
 function colorFor(id){let n=0;for(const c of String(id||''))n=(n*31+c.charCodeAt(0))>>>0;return COLORS[n%COLORS.length]}
 function person(id){return S.people[id]||{name:'',color:'var(--muted)'}}
 function pname(id,fallback='Qualcuno'){if(id&&id===S.me.id)return person(id).name||S.me.name||'Tu';return person(id).name||fallback}
