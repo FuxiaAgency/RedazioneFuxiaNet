@@ -61,3 +61,7 @@ L'icona attuale è "FuxiaNet" (Fuxia bianco, Net oro) su sfumatura fucsia-blu co
 - Le ripetizioni si calcolano nel browser (`occurrences()` in `agenda.js`). Per gli impegni senza orario il promemoria si conta dalle 9:00 del giorno.
 - "Aggiungi al calendario del telefono" scarica un file .ics con allarme: rete di sicurezza in attesa delle notifiche push.
 - Pagina iniziale: `#oggi`.
+
+## Menabò
+
+Tolto dal menu su richiesta della redazione (21/10/2026). Il codice (`renderMenabo`) e la tabella `menabo` restano: per ripristinarlo basta rimettere la voce nel menu, in `parseHash` e togliere i `return` iniziali di `where()` e `mbOrder()`.

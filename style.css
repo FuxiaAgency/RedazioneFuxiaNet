@@ -319,7 +319,7 @@ figcaption .credit{font-family:var(--f-mono);font-size:11px;text-transform:upper
 .whocard .lg{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted)}
 .whocard .lg b{color:var(--c);font-weight:700}
 .rlist{display:grid;gap:6px}
-.rhead,.rrow{display:grid;grid-template-columns:128px minmax(0,2.4fr) minmax(0,1.2fr) minmax(0,1.1fr) 64px 100px;gap:14px;align-items:center;padding:10px 14px}
+.rhead,.rrow{display:grid;grid-template-columns:128px minmax(0,2.4fr) minmax(0,1.2fr) minmax(0,1.1fr) 100px;gap:14px;align-items:center;padding:10px 14px}
 .rhead{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--muted);padding-block:4px}
 .rrow{background:color-mix(in srgb,var(--c) 7%,var(--sheet));border:1px solid var(--rule);border-left:5px solid var(--c);border-radius:8px;text-align:left;width:100%}
 .rrow:hover{border-color:var(--c);border-left-color:var(--c)}

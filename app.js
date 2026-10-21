@@ -115,7 +115,7 @@ function renderSquadra(){if(!S.me.isDir)return h('p',{class:'muted'},'Questa sez
         try{await q(sb.from('profiles').update({role:v}).eq('id',p.id));toast(p.name+': '+RUOLI[v]);loadPeople()}catch(err){toast(errMsg(err));loadPeople()}}},
       Object.entries(RUOLI).map(([k,l])=>h('option',{value:k,selected:p.role===k||null},l)));
       return h('div',{class:'member'+(p.role==='in_attesa'?' pending':'')},avatar(p.id),h('div',{class:'who2'},h('b',null,p.name+(p.id===S.me.id?' (tu)':'')),h('span',null,p.email||'')),sel)})),
-    h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Lettore: vede tutto ma non scrive. Redattore: scrive, corregge, lascia note e carica foto. Direttore: in più pubblica, prepara il menabò e gestisce la squadra.'))}
+    h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Lettore: vede tutto ma non scrive. Redattore: scrive, corregge, lascia note e carica foto. Direttore: in più pubblica e gestisce la squadra.'))}
 /* ---------- profilo e installazione ---------- */
 function profileModal(){modal({title:'Il mio profilo',small:true,body:close=>{
   const nm=h('input',{id:'my-name',class:'search',style:'width:100%',value:S.me.name||'',maxlength:'80'});
@@ -181,7 +181,7 @@ function renderBody(text){const out=h('div',{class:'prose'});
 /* ---------- navigazione ---------- */
 function hashOf(view,id){return'#'+(view==='articolo'?'a-'+id:view)}
 function parseHash(){const s=(location.hash||'').slice(1);if(s.startsWith('a-'))return{view:'articolo',id:s.slice(2)};
-  return{view:['edizione','foto','tavolo','menabo','riepilogo','squadra','appunti','rubrica','agenda','oggi'].includes(s)?s:'oggi',id:null}}
+  return{view:['edizione','foto','tavolo','riepilogo','squadra','appunti','rubrica','agenda','oggi'].includes(s)?s:'oggi',id:null}}
 function go(view,id,fromPop){
   if(S.editing&&!(view==='articolo'&&id===S.current))stopEdit();
   const changed=view!=='articolo'||id!==S.current;
@@ -214,7 +214,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
   const brand=h('div',{class:'brand-row'},T==='tutte'?h('div',{class:'logos'},TK.map(k=>h('img',{class:'logo-m',src:TESTATE[k].logo,alt:TESTATE[k].name}))):h('img',{class:'logo-m',src:TESTATE[T].logo,alt:TESTATE[T].name}),
     h('div',{class:'brand'},h('small',null,'Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
   const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
-  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('menabo','Menabò'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
+  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
     S.me.canWrite&&S.loaded?h('button',{class:'btn primary',onclick:newArticle},'＋ Nuovo articolo'):null,
@@ -396,8 +396,7 @@ function incaricoPanel(a){const can=canPlan(a);const ws=where(a.id);
       a.deadline?(dueChip(a)||h('span',null,fullDate(a.deadline))):h('span',{class:'muted'},'Nessuna scadenza')),
       can?h('div',{class:'v',style:'margin-top:8px'},dl,
         h('button',{class:'btn sm primary',onclick:()=>{if(!dl.value){toast('Scegli data e ora di consegna.');return}patchArt(a,{deadline:new Date(dl.value).getTime()},'Scadenza salvata')}},'Salva'),
-        a.deadline?h('button',{class:'btn sm ghost',onclick:()=>patchArt(a,{deadline:null},'Scadenza rimossa')},'Rimuovi'):null):null),
-    h('div',null,h('div',{class:'k'},'Nel menabò'),h('div',{class:'v'},ws.length?ws.map(w=>h('span',{class:'pill',style:'--c:var(--accent)'},'Pag. '+w.n+' · '+w.page+' · '+SLOT[w.kind].l)):h('span',{class:'muted'},'Non ancora impaginato')))))}
+        a.deadline?h('button',{class:'btn sm ghost',onclick:()=>patchArt(a,{deadline:null},'Scadenza rimossa')},'Rimuovi'):null):null)))}
 function pickPerson(a){
   modal({title:'Assegna l\'articolo',small:true,body:close=>{
     const pick=async id=>{close();await patchArt(a,{assigneeId:id},id?'Assegnato a '+pname(id):'Assegnazione rimossa')};
@@ -460,14 +459,13 @@ function renderRiepilogo(){const all=S.articles.filter(inT);const who=a=>a.assig
     return h('div',{class:'whocard'},h('div',{class:'n'},avatar(pid),h('span',null,pname(pid)),h('span',{class:'tot'},mine.length+(mine.length===1?' pezzo':' pezzi'))),
       h('div',{class:'stack'},STATI.map(s=>{const n=mine.filter(a=>stOf(a)===s.k).length;return n?h('i',{style:'background:'+s.c+';width:'+(n/mine.length*100)+'%',title:s.l+': '+n}):null})),
       h('div',{class:'lg'},STATI.map(s=>{const n=mine.filter(a=>stOf(a)===s.k).length;return n?h('span',{style:'--c:'+s.c},h('b',null,n),' '+s.l.toLowerCase()):null}),late?h('span',{style:'--c:var(--pencil)'},h('b',null,late),' in ritardo'):null))}));
-  const list=h('div',{class:'rlist'},h('div',{class:'rhead'},h('span',null,'Stato'),h('span',null,'Articolo'),h('span',null,'Chi'),h('span',null,'Consegna'),h('span',null,'Pagina'),h('span',null,'Aggiornato')),
+  const list=h('div',{class:'rlist'},h('div',{class:'rhead'},h('span',null,'Stato'),h('span',null,'Articolo'),h('span',null,'Chi'),h('span',null,'Consegna'),h('span',null,'Aggiornato')),
     rows.map(a=>{const st=STATO[stOf(a)];const w=where(a.id);
       return h('button',{class:'rrow',style:'--c:'+st.c,onclick:()=>go('articolo',a.id)},
         h('span',null,h('span',{class:'pill',style:'--c:'+st.c},st.l)),
         h('span',{class:'tt'},(S.testata==='tutte'||a.section)?h('span',{style:'display:flex;gap:8px;align-items:center'},S.testata==='tutte'?tchip(tOf(a)):null,a.section?h('span',{class:'kick'},a.section):null):null,h('b',null,a.title||'Senza titolo')),
         h('span',{class:'pp'},avatar(who(a)),h('span',null,byName(a))),
         h('span',null,dueChip(a)||h('span',{class:'sm'},a.status==='pubblicato'&&a.publishedAt?'Uscito '+ago(a.publishedAt):'—')),
-        h('span',{class:'sm mono'},w.length?'Pag. '+w.map(x=>x.n).join(', '):'—'),
         h('span',{class:'sm c-up'},ago(a.updatedAt)))}),
     rows.length?null:h('p',{class:'muted'},'Nessun articolo in questo stato.'));
   return h('div',null,top,h('div',{class:'eyebrow',style:'margin-bottom:8px'},'Chi fa cosa'),whoBox,chips,list)}
@@ -479,8 +477,8 @@ const todayISO=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth
 function mbDefault(){const pg=(title,kinds)=>({id:uid(),title,slots:kinds.map(kind=>({id:uid(),kind,articleId:null}))});
   return{date:todayISO(),pages:[pg('Prima pagina',['apertura','spalla','taglio']),pg('Cronaca',['apertura','taglio','breve','breve']),
     pg('Musica e TV',['apertura','spalla','taglio']),pg('Cultura',['apertura','spalla']),pg('Sport',['apertura','taglio','breve'])]}}
-function where(aid){const out=[];for(const t of TK){const mb=S.menabi[t];if(!mb)continue;(mb.pages||[]).forEach((p,i)=>(p.slots||[]).forEach(s=>{if(s.articleId===aid)out.push({t,n:i+1,page:p.title,kind:s.kind})}))}return out}
-function mbOrder(t){const m=new Map();let i=0;const mb=S.menabi[t];if(mb)for(const p of mb.pages||[])for(const s of p.slots||[]){if(s.articleId&&!m.has(s.articleId))m.set(s.articleId,i);i++}return m}
+function where(aid){return[];const out=[];for(const t of TK){const mb=S.menabi[t];if(!mb)continue;(mb.pages||[]).forEach((p,i)=>(p.slots||[]).forEach(s=>{if(s.articleId===aid)out.push({t,n:i+1,page:p.title,kind:s.kind})}))}return out}
+function mbOrder(t){return new Map();const m=new Map();let i=0;const mb=S.menabi[t];if(mb)for(const p of mb.pages||[])for(const s of p.slots||[]){if(s.articleId&&!m.has(s.articleId))m.set(s.articleId,i);i++}return m}
 let mbChain=Promise.resolve();
 function mbSave(t,mut){if(!S.me.isDir)return;const next=JSON.parse(JSON.stringify(S.menabi[t]||mbDefault()));mut(next);S.menabi[t]=next;render();
   mbChain=mbChain.then(()=>q(sb.from('menabo').upsert({testata:t,data:next,updated_at:new Date().toISOString()}))).catch(e=>{toast(errMsg(e));loadMenabo()})}
