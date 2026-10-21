@@ -122,7 +122,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
     const contacts=[...S.contatti].sort((x,y)=>x.name.localeCompare(y.name));
     const arts=S.articles.filter(x=>x.status!=='pubblicato'||x.id===d.articleId);
     const team=S.team.filter(p=>p.role==='redattore'||p.role==='direttore');
-    function draw(){const ro=!edit;
+    let draw=function(){const ro=!edit;
       wrap.replaceChildren(
         h('div',{class:'field wide'},h('label',null,'Tipo'),seg('Tipo',Object.entries(AK).map(([k,v])=>[k,v.l]),d.kind,v=>{d.kind=v;if(v==='scadenza'&&isNew)d.allDay=true})),
         field('ap-title','Titolo (facoltativo)',h('input',{id:'ap-title',value:d.title,placeholder:'Es. Intervista telefonica con l\'artista',oninput:e=>{d.title=e.target.value},readonly:ro||null}),true),
@@ -132,7 +132,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
             h('label',{class:'chk'},h('input',{id:'ap-allday',type:'checkbox',checked:d.allDay||null,disabled:ro||null,onchange:e=>{d.allDay=e.target.checked;draw()}}),'Senza orario'))),
         field('ap-remind','Promemoria',h('select',{id:'ap-remind',disabled:ro||null,onchange:e=>{d.remind=e.target.value===''?null:Number(e.target.value)}},
           AREM.map(([v,l])=>h('option',{value:v==null?'':String(v),selected:(d.remind==null?v==null:d.remind===v)||null},remLabel(v,l,d.allDay))))),
-        field('ap-contact','Contatto in Rubrica',h('select',{id:'ap-contact',disabled:ro||null,onchange:e=>{d.contactId=e.target.value||null}},h('option',{value:''},'— Nessuno —'),
+        field('ap-contact','Contatto in Rubrica',h('select',{id:'ap-contact',disabled:ro||null,onchange:e=>{d.contactId=e.target.value||null;callSlot.replaceChildren(callBox()||'')}},h('option',{value:''},'— Nessuno —'),
           contacts.map(c=>h('option',{value:c.id,selected:c.id===d.contactId||null},c.name+(c.org?' · '+c.org:''))))),
         field('ap-art','Articolo collegato',h('select',{id:'ap-art',disabled:ro||null,onchange:e=>{d.articleId=e.target.value||null}},h('option',{value:''},'— Nessuno —'),
           arts.map(x=>h('option',{value:x.id,selected:x.id===d.articleId||null},(x.title||'Senza titolo')+' · '+TESTATE[tOf(x)].short)))),
@@ -146,7 +146,12 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
         isNew?null:h('div',{class:'field wide'},h('label',null,'Stato'),seg('Stato',Object.entries(AST),d.status,v=>{d.status=v},()=>ro),
           d.status==='rinviato'?h('p',{class:'muted',style:'margin:6px 0 0;font-size:13px'},'Ricordati di cambiare giorno e ora qui sopra con la nuova data.'):null),
         field('ap-notes','Note',h('textarea',{id:'ap-notes',rows:'4',value:d.notes,placeholder:'Argomenti da trattare, domande, numeri utili, dettagli dell\'incontro…',oninput:e=>{d.notes=e.target.value},readonly:ro||null,style:'width:100%;resize:vertical'}),true),
-        a?h('p',{class:'muted wide',style:'font-size:12px;margin:0'},'Creato da '+pname(a.by)+(a.vis!=='tutti'?' · visibile: '+AVIS[a.vis].toLowerCase():'')):null)}
+        a?h('p',{class:'muted wide',style:'font-size:12px;margin:0'},'Creato da '+pname(a.by)+(a.vis!=='tutti'?' · visibile: '+AVIS[a.vis].toLowerCase():'')):null)};
+    const callBox=()=>{const c=contactById(d.contactId);if(!c||!(c.phone||c.phone2||c.email))return null;
+      return h('div',{class:'clinks',style:'margin-bottom:12px'},h('span',{class:'muted',style:'font-size:13px;align-self:center'},c.name+':'),
+        c.phone?h('a',{class:'clink call',href:telHref(c.phone)},'📞 Chiama ',c.phone):null,c.phone2?h('a',{class:'clink call',href:telHref(c.phone2)},'📞 ',c.phone2):null,
+        c.email?h('a',{class:'clink',href:'mailto:'+c.email},'✉ ',c.email):null)};
+    const callSlot=h('div');const _draw=draw;draw=function(){_draw();callSlot.replaceChildren(callBox()||'')};
     draw();
     function row(){const [y,m,dd]=d.day.split('-').map(Number);const[hh,mi]=(d.allDay?'09:00':d.time||'09:00').split(':').map(Number);
       return{kind:d.kind,title:d.title.trim(),starts_at:new Date(y,m-1,dd,d.allDay?0:hh,d.allDay?0:mi).toISOString(),all_day:d.allDay,remind_min:d.remind,notes:d.notes.trim(),
@@ -162,7 +167,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
     const del=canDel?h('button',{class:'btn danger',onclick:async()=>{if(!armed){armed=true;del.textContent='Conferma eliminazione';return}
       try{const r=await q(sb.from('appuntamenti').delete().eq('id',a.id).select('id'));if(!r.length)throw{code:'perm'};close();toast('Appuntamento eliminato');loadAppt()}catch(e){toast(errMsg(e))}}},'Elimina'):null;
     const ics=a?h('button',{class:'btn',onclick:()=>downloadIcs(a)},'Aggiungi al calendario del telefono'):null;
-    return{body:wrap,foot:[del,ics,doneOnce,h('div',{class:'spacer'}),h('button',{class:'btn',onclick:close},edit?'Annulla':'Chiudi'),edit?h('button',{class:'btn primary',onclick:save},'Salva'):null]}}});
+    return{body:h('div',null,callSlot,wrap),foot:[del,ics,doneOnce,h('div',{class:'spacer'}),h('button',{class:'btn',onclick:close},edit?'Annulla':'Chiudi'),edit?h('button',{class:'btn primary',onclick:save},'Salva'):null]}}});
   if(isNew)setTimeout(()=>{const t=document.getElementById('ap-title');t&&t.focus()},30)}
 
 /* ---------- file .ics per il calendario del telefono ---------- */

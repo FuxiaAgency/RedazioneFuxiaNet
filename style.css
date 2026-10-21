@@ -544,3 +544,8 @@ main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;col
 .occ.art{grid-template-columns:minmax(0,1fr)}
 .occ.art .occ-side{grid-column:1}
 .occ-when{white-space:normal;max-width:96px}
+.phonefield{display:flex;gap:8px;align-items:center}
+.phonefield input{flex:1;min-width:0}
+.phonefield .btn{white-space:nowrap;text-decoration:none}
+.clink.call{background:var(--s-accent);color:#fff;font-weight:600}
+.clink.call:hover{color:#fff;filter:brightness(1.08)}

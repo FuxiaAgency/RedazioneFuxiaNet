@@ -699,7 +699,9 @@ function contactModal(c){const edit=S.me.canWrite;const d=Object.assign({},c||{}
   modal({title:c?(edit?'Modifica contatto':c.name):'Nuovo contatto',body:close=>{
     const fields=CF.map(([k,l,t,ac])=>{const id='c-'+k;const inp=t==='textarea'?h('textarea',{id,value:d[k]||'',rows:'4',oninput:e=>{d[k]=e.target.value},style:'width:100%;resize:vertical'})
       :h('input',{id,type:t,value:d[k]||'',autocomplete:ac||'off',placeholder:k==='instagram'||k==='facebook'||k==='x'?'@nome oppure link':'',oninput:e=>{d[k]=e.target.value}});
-      if(!edit)inp.setAttribute('readonly','');return h('div',{class:'field'+(k==='notes'||k==='address'?' wide':'')},h('label',{for:id},l),inp)});
+      if(!edit)inp.setAttribute('readonly','');
+      const ctl=(k==='phone'||k==='phone2')&&d[k]?h('div',{class:'phonefield'},inp,h('a',{class:'btn sm primary',href:telHref(d[k]),'aria-label':'Chiama '+d[k]},'📞 Chiama')):inp;
+      return h('div',{class:'field'+(k==='notes'||k==='address'?' wide':'')},h('label',{for:id},l),ctl)});
     const canDel=c&&(S.me.isDir||c.by_id===S.me.id);let armed=false;
     const del=canDel?h('button',{class:'btn danger',onclick:async()=>{if(!armed){armed=true;del.textContent='Conferma eliminazione';return}
       try{const r=await q(sb.from('contatti').delete().eq('id',c.id).select('id'));if(!r.length)throw{code:'perm'};close();toast('Contatto eliminato');loadContatti()}catch(e){toast(errMsg(e))}}},'Elimina'):null;
