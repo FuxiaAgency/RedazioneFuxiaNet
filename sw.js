@@ -1,7 +1,7 @@
 // Service worker: rende l'app installabile e la apre anche con rete debole.
 // Strategia "prima la rete": le modifiche pubblicate arrivano subito; la copia salvata serve solo offline.
 // Dati e foto (Supabase) non passano di qui.
-const CACHE = 'redazione-v13';
+const CACHE = 'redazione-v14';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'manifest.webmanifest',
   'img/fuxia_logo.png', 'img/rnv_logo.png', 'img/fuxia_banner.jpg', 'img/rnv_banner.jpg',
   'icons/icon-192.png', 'icons/icon-512.png'];
