@@ -12,6 +12,7 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 |---|---|
 | `index.html` | La pagina dell'app |
 | `app.js` | Tutta la logica |
+| `agenda.js` | Agenda (appuntamenti, calendario, file .ics) e pagina Oggi |
 | `style.css` | Aspetto e colori (fucsia per Fuxia, blu e oro per RNV) |
 | `config.js` | Indirizzo e chiave pubblica di Supabase |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installazione sul telefono |
@@ -52,3 +53,11 @@ L'icona attuale è "FuxiaNet" (Fuxia bianco, Net oro) su sfumatura fucsia-blu co
 - Blocco di modifica: funzioni SQL `acquire_lock` / `release_lock` (45 secondi, rinnovato ogni 25).
 - Se aggiungi un campo agli articoli: colonna in `schema.sql` (con `add column if not exists`), voce in `A2R` e in `artFromRow`.
 - Dopo modifiche importanti a `app.js` o `style.css`, aumenta il numero in `CACHE` dentro `sw.js` così i telefoni scaricano la versione nuova.
+
+## Agenda e pagina Oggi
+
+- Tabella `appuntamenti` (vedi fondo di `supabase/schema.sql`): tipo, data e ora (o senza orario), promemoria in minuti, contatto e articolo collegati, assegnato, visibilità (`tutti`, `direzione`, `privato`), stato, ripetizione (`giorno`, `settimana`, `mese`) con data di fine, `done_dates` per segnare fatta una singola volta di un appuntamento ricorrente.
+- Visibilità: `privato` lo vedono solo chi l'ha creato e chi è assegnato; `direzione` i direttori più creatore e assegnato. Solo i direttori possono creare appuntamenti `direzione`.
+- Le ripetizioni si calcolano nel browser (`occurrences()` in `agenda.js`). Per gli impegni senza orario il promemoria si conta dalle 9:00 del giorno.
+- "Aggiungi al calendario del telefono" scarica un file .ics con allarme: rete di sicurezza in attesa delle notifiche push.
+- Pagina iniziale: `#oggi`.

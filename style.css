@@ -430,3 +430,117 @@ figcaption .credit{font-family:var(--f-mono);font-size:11px;text-transform:upper
 .cform{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cform .wide{grid-column:1/-1}
 @media (max-width:560px){.cform{grid-template-columns:1fr}}
+
+/* Navigazione scorrevole sui telefoni */
+@media (max-width:760px){.nav{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;width:100%;order:5}.nav::-webkit-scrollbar{display:none}.nav button{white-space:nowrap}}
+
+/* Agenda */
+.occlist{display:grid;gap:6px}
+.occ{--sheet:var(--s-sheet);--ink:var(--s-ink);--muted:var(--s-muted);--rule:var(--s-rule);--hover:var(--s-hover);
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;
+  background:var(--sheet);color:var(--ink);border:1px solid var(--rule);border-left:4px solid var(--k);border-radius:8px;padding:8px 10px}
+.occ:hover{background:var(--hover)}
+.occ.done .occ-main b,.occ.cancelled .occ-main b{text-decoration:line-through;color:var(--muted)}
+.occ.done,.occ.cancelled{opacity:.7}
+.occ.late{border-color:var(--pencil);border-left-color:var(--pencil)}
+.occ-when{font-size:13px;font-weight:600;min-width:52px;color:var(--ink)}
+.occ-main{display:grid;min-width:0;gap:1px}
+.occ-main b{font-size:15px;overflow-wrap:anywhere}
+.occ-kind{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--k)}
+.occ-sub{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.occ-side{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ast{font-size:11px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--hover);color:var(--muted);white-space:nowrap}
+.ast.ok{background:color-mix(in srgb,var(--s-pronto) 16%,transparent);color:var(--s-pronto)}
+.ast.no{background:var(--hover);color:var(--muted)}
+.ast.mv{background:color-mix(in srgb,var(--s-revisione) 16%,transparent);color:var(--s-revisione)}
+.ast.late{background:var(--pencil-soft);color:var(--pencil)}
+.ast.lock{background:var(--hover);color:var(--ink)}
+.agbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.agnav{display:flex;gap:4px}
+.agtitle{font-family:var(--f-ui);font-size:18px;letter-spacing:.04em}
+.agseg button{color:var(--ink)}
+.agseg button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--page)}
+.agseg.wrap{flex-wrap:wrap}
+.apform .agseg button{color:var(--s-ink);border-color:var(--s-rule)}
+.apform .agseg button[aria-pressed=true]{background:var(--s-accent);border-color:var(--s-accent);color:#fff}
+.apform .agseg button[disabled]{opacity:.4;cursor:not-allowed}
+.agweek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:900px){.agweek{grid-template-columns:1fr}}
+.agcol{background:color-mix(in srgb,var(--s-sheet) 85%,transparent);color:var(--s-ink);border-radius:12px;padding:8px;display:grid;gap:8px;align-content:start;min-width:0;
+  --sheet:var(--s-sheet);--ink:var(--s-ink);--muted:var(--s-muted);--rule:var(--s-rule);--hover:var(--s-hover)}
+.agcol.today{outline:3px solid var(--s-accent)}
+.agcol-h{display:flex;gap:6px;align-items:baseline;background:none;border:0;padding:2px 4px;color:var(--s-ink);text-align:left}
+.agcol-h span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--s-muted)}
+.agcol-h b{font-size:20px}
+.agcol .occ{grid-template-columns:auto minmax(0,1fr);padding:6px 8px}
+.agcol .occ-side{grid-column:1/-1;justify-content:flex-start}
+.agempty{margin:0 4px;font-size:13px}
+.agadd{background:none;border:1px dashed var(--s-rule);border-radius:8px;color:var(--s-muted);padding:4px}
+.agadd:hover{color:var(--s-accent);border-color:var(--s-accent)}
+.agmonth{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.aghead{font-family:var(--f-ui);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:4px 0}
+.agcell{background:var(--s-sheet);color:var(--s-ink);border:0;border-radius:8px;min-height:92px;padding:6px;text-align:left;display:grid;align-content:start;gap:4px;min-width:0}
+.agcell.out{opacity:.5}
+.agcell.today{outline:3px solid var(--s-accent)}
+.agcell:hover{background:var(--s-hover)}
+.agnum{font-weight:700;font-size:14px}
+.agdots{display:grid;gap:2px;min-width:0}
+.agchip{font-size:11px;line-height:1.3;padding:1px 5px;border-radius:4px;background:color-mix(in srgb,var(--k) 16%,transparent);color:var(--s-ink);border-left:3px solid var(--k);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agchip.done{opacity:.5;text-decoration:line-through}
+.agmore{font-size:11px;color:var(--s-muted)}
+@media (max-width:600px){.agcell{min-height:56px;padding:4px}.agchip{font-size:0;padding:0;height:6px;border-left-width:0;background:var(--k)}}
+.aglegend{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px;font-size:12px}
+.aglegend span{display:inline-flex;align-items:center;gap:6px}
+.aglegend span::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--k)}
+.apform{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.apform .wide{grid-column:1/-1}
+.apform .inline{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.apform .inline input[type=time]{flex:1;min-width:110px}
+.apform select,.apform input,.apform textarea{border:1px solid var(--s-rule);background:var(--s-tint);color:var(--s-ink);border-radius:8px;padding:9px 10px;width:100%;min-width:0;font:inherit}
+.apform .chk input{width:auto}
+.apform .chk{color:var(--s-muted)}
+@media (max-width:560px){.apform{grid-template-columns:1fr}}
+.apbox{border:1px solid var(--s-rule);border-radius:10px;padding:12px;margin-bottom:16px;display:grid;gap:10px}
+.apbox-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+/* Oggi */
+.oggi-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.oggi-head h1{font-family:var(--f-display);font-size:clamp(30px,5vw,44px);margin:4px 0 0;font-weight:600}
+.oggi-actions{display:flex;gap:8px;flex-wrap:wrap}
+.oggi-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+@media (max-width:600px){.oggi-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--s-sheet);color:var(--s-ink);border:0;border-top:4px solid var(--c);border-radius:12px;padding:12px 14px;display:grid;gap:2px;text-align:left}
+.stat b{font-size:28px;line-height:1}
+.stat span{font-size:13px;color:var(--s-muted)}
+.stat:hover{box-shadow:var(--shadow)}
+.oggi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;align-items:start}
+@media (max-width:420px){.oggi-grid{grid-template-columns:1fr}}
+.oggi-card{display:grid;gap:10px}
+.oggi-card h2{margin:0}
+.oggi-day{display:grid;gap:6px}
+.oggi-day+.oggi-day{margin-top:8px}
+
+.occ.art{grid-template-columns:minmax(0,1fr) auto}
+.occ-when{white-space:nowrap}
+@media (max-width:600px){
+  .occ{grid-template-columns:auto minmax(0,1fr)}
+  .occ.art{grid-template-columns:minmax(0,1fr)}
+  .occ-side{grid-column:1/-1;justify-content:flex-start}
+  .occ:not(.art) .occ-side{grid-column:2}
+  .occ-when{white-space:normal;max-width:76px}
+}
+main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;color:#0a0406}
+.aglegend{background:var(--s-sheet);color:var(--s-ink);padding:8px 12px;border-radius:10px;width:fit-content;max-width:100%}
+/* Nelle colonne strette (settimana, scheda articolo, contatto) l'impegno si impila */
+.agcol .occ,.side .occ,.apbox .occ{grid-template-columns:minmax(0,1fr);gap:4px}
+.agcol .occ-side,.side .occ-side,.apbox .occ-side{grid-column:1;justify-content:flex-start}
+.agcol .occ-when,.side .occ-when,.apbox .occ-when{max-width:none;white-space:nowrap;color:var(--k)}
+.occ-sub{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.agcol .occ-main b{font-size:14px}
+/* Etichette sempre sotto il titolo: il titolo ha tutto lo spazio */
+.occ{grid-template-columns:auto minmax(0,1fr)}
+.occ-side{grid-column:2;justify-content:flex-start}
+.occ.art{grid-template-columns:minmax(0,1fr)}
+.occ.art .occ-side{grid-column:1}
+.occ-when{white-space:normal;max-width:96px}

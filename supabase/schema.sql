@@ -297,3 +297,61 @@ do $$ begin
     alter publication supabase_realtime add table public.contatti;
   end if;
 end $$;
+
+-- ---------- Agenda: appuntamenti, telefonate, interviste e scadenze (aggiunta il 21/10/2026) ----------
+create table if not exists public.appuntamenti (
+  id            uuid primary key default gen_random_uuid(),
+  kind          text not null default 'telefonata'
+                check (kind in ('telefonata','intervista','riunione','incontro','scadenza','altro')),
+  title         text not null default '',
+  starts_at     timestamptz not null,
+  all_day       boolean not null default false,
+  remind_min    int check (remind_min is null or remind_min between 0 and 20160),
+  notes         text not null default '',
+  contact_id    uuid references public.contatti(id) on delete set null,
+  article_id    uuid references public.articles(id) on delete set null,
+  assignee_id   uuid references public.profiles(id) on delete set null,
+  created_by    uuid references public.profiles(id) on delete set null,
+  visibility    text not null default 'tutti' check (visibility in ('tutti','direzione','privato')),
+  status        text not null default 'da_fare' check (status in ('da_fare','completato','rinviato','annullato')),
+  repeat        text not null default 'no' check (repeat in ('no','giorno','settimana','mese')),
+  repeat_until  date,
+  done_dates    text[] not null default '{}',
+  testata       text check (testata in ('fuxia','rnv')),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create index if not exists appuntamenti_starts_idx on public.appuntamenti (starts_at);
+
+-- Chi può vedere un appuntamento: tutti, solo la direzione, oppure solo chi l'ha creato e chi è assegnato.
+create or replace function public.can_see_appuntamento(vis text, creator uuid, assignee uuid) returns boolean
+language sql stable as $$
+  select public.is_reader() and (
+    vis = 'tutti'
+    or creator = auth.uid() or assignee = auth.uid()
+    or (vis = 'direzione' and public.is_director())
+  )
+$$;
+
+alter table public.appuntamenti enable row level security;
+grant select, insert, update, delete on public.appuntamenti to authenticated;
+drop policy if exists appuntamenti_read   on public.appuntamenti;
+drop policy if exists appuntamenti_insert on public.appuntamenti;
+drop policy if exists appuntamenti_update on public.appuntamenti;
+drop policy if exists appuntamenti_delete on public.appuntamenti;
+create policy appuntamenti_read   on public.appuntamenti for select to authenticated
+  using (public.can_see_appuntamento(visibility, created_by, assignee_id));
+create policy appuntamenti_insert on public.appuntamenti for insert to authenticated
+  with check (public.is_member() and created_by = auth.uid()
+              and (visibility <> 'direzione' or public.is_director()));
+create policy appuntamenti_update on public.appuntamenti for update to authenticated
+  using (public.is_member() and public.can_see_appuntamento(visibility, created_by, assignee_id))
+  with check (public.is_member() and public.can_see_appuntamento(visibility, created_by, assignee_id));
+create policy appuntamenti_delete on public.appuntamenti for delete to authenticated
+  using (public.is_director() or created_by = auth.uid());
+
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'appuntamenti') then
+    alter publication supabase_realtime add table public.appuntamenti;
+  end if;
+end $$;
