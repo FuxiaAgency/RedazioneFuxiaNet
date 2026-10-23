@@ -1,4 +1,6 @@
-# Redazione · Fuxia Magazine e Rete NeTVision
+# FuxiaNet 1 · Redazione
+
+La redazione di Fuxia Magazine, Rete NeTVision e 1Channel.
 
 La redazione online delle due testate: articoli con stati (Bozza, In revisione, Da correggere, Pronto, Pubblicato), note e correzioni a margine, foto e gallerie, scadenze e assegnazioni, Riepilogo, Menabò ed Edizione per ciascuna testata. Si installa sul telefono come un'app.
 
@@ -42,7 +44,7 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 
 ## Icona
 
-L'icona attuale è "FuxiaNet" (Fuxia bianco, Net oro) su sfumatura fucsia-blu con linea oro e scritta REDAZIONE (icons/fuxianet/4.png). Le alternative sono in `icons/opt_fuxia.png` e `icons/opt_rnv.png`: per cambiarla vanno rigenerati `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `favicon-32.png` dall'opzione scelta.
+L'icona attuale è "FuxiaNet 1" (Fuxia bianco, Net oro, 1 rosso in un riquadro bianco) sui tre colori delle testate, con linea oro e scritta REDAZIONE (icons/fuxianet1/riga.png). Il nome sotto l'icona è "FuxiaNet 1" (`short_name` nel manifest). Le alternative sono in `icons/opt_fuxia.png` e `icons/opt_rnv.png`: per cambiarla vanno rigenerati `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `favicon-32.png` dall'opzione scelta.
 
 ## Note per chi modifica il codice (anche Claude)
 

@@ -21,7 +21,7 @@ img{max-width:100%}
   --page:#14229a; --brand-deep:#070d3d; --nav-on:#f5b800; --nav-on-ink:#070d3d;
   --s-ink:#0b1033; --s-muted:#525a86; --s-rule:#d8dcf2; --s-hover:#e8ebfb; --s-tint:#f3f5fd;
   --s-accent:#1b30b5; --s-accent-ink:#ffffff; --s-accent-soft:#e2e6ff; --s-revisione:#0f8b8d}
-:root[data-testata="tutte"]{--page-bg:linear-gradient(135deg,#ec009c 0%,#80149b 33%,#14229a 66%,#dd2e43 100%)}
+:root[data-testata="tutte"]{--page-bg:radial-gradient(120% 85% at 0% 0%,#ec009c 0%,rgba(236,0,156,0) 62%),radial-gradient(110% 85% at 100% 15%,#14229a 0%,rgba(20,34,154,0) 62%),radial-gradient(120% 95% at 55% 105%,#dd2e43 0%,rgba(221,46,67,0) 64%),#5a1468}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --page:#ec009c; --brand-deep:#050203;
   --s-sheet:#1c0a12; --s-ink:#fbe9f1; --s-muted:#d39ab4; --s-rule:#46192c; --s-hover:#2f1020; --s-tint:#26101a;
@@ -39,11 +39,11 @@ img{max-width:100%}
 @media (prefers-color-scheme:dark){:root[data-testata="rnv"]:not([data-theme="light"]){
   --page:#0b1462; --brand-deep:#03061f; --s-sheet:#0f1433; --s-ink:#e8ebff; --s-muted:#a3abd6; --s-rule:#252d5e; --s-hover:#1a2050; --s-tint:#12183d;
   --s-accent:#ffc629; --s-accent-ink:#0b1033; --s-accent-soft:#2a2f55; --s-revisione:#4fd1d3}
-  :root[data-testata="tutte"]:not([data-theme="light"]){--page-bg:linear-gradient(135deg,#ec009c,#80149b,#0b1462)}}
+  :root[data-testata="tutte"]:not([data-theme="light"]){--page-bg:radial-gradient(120% 85% at 0% 0%,#ec009c 0%,rgba(236,0,156,0) 55%),radial-gradient(110% 85% at 100% 15%,#14229a 0%,rgba(20,34,154,0) 55%),radial-gradient(120% 95% at 55% 105%,#dd2e43 0%,rgba(221,46,67,0) 58%),#240a2c}}
 :root[data-theme="dark"][data-testata="rnv"]{
   --page:#0b1462; --brand-deep:#03061f; --s-sheet:#0f1433; --s-ink:#e8ebff; --s-muted:#a3abd6; --s-rule:#252d5e; --s-hover:#1a2050; --s-tint:#12183d;
   --s-accent:#ffc629; --s-accent-ink:#0b1033; --s-accent-soft:#2a2f55; --s-revisione:#4fd1d3}
-:root[data-theme="dark"][data-testata="tutte"]{--page-bg:linear-gradient(135deg,#ec009c,#80149b,#0b1462)}
+:root[data-theme="dark"][data-testata="tutte"]{--page-bg:radial-gradient(120% 85% at 0% 0%,#ec009c 0%,rgba(236,0,156,0) 55%),radial-gradient(110% 85% at 100% 15%,#14229a 0%,rgba(20,34,154,0) 55%),radial-gradient(120% 95% at 55% 105%,#dd2e43 0%,rgba(221,46,67,0) 58%),#240a2c}
 /* Token d'uso: superfici di lavoro per default; sul fondo fucsia (main, testata) diventano chiari */
 :root,.sheet,.panel,.card,.col,.whocard,.rrow,.agenda,.mb-bar,.mb-page,.ph,.empty-state,.modal,.search,.chips button,.drop,.lead-wrap{
   --sheet:var(--s-sheet); --ink:var(--s-ink); --muted:var(--s-muted); --rule:var(--s-rule); --hover:var(--s-hover); --paper:var(--s-tint);
@@ -285,7 +285,7 @@ figcaption .credit{font-family:var(--f-mono);font-size:11px;text-transform:upper
 .tsw button:hover{color:var(--ink)}
 .tsw button[aria-pressed=true].t-fuxia,.tchip.t-fuxia{background:#ec009c;color:#fff}
 .tsw button[aria-pressed=true].t-rnv{background:#f5b800;color:#070d3d}
-.tsw button[aria-pressed=true].t-tutte{background:#fff;color:#0a0406}
+.tsw button[aria-pressed=true].t-tutte{background:linear-gradient(100deg,#ec009c,#14229a 55%,#dd2e43);color:#fff}
 .tchip{display:inline-flex;align-self:flex-start;font-family:var(--f-ui);font-weight:700;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px 2px;border-radius:4px;white-space:nowrap}
 .tchip.t-rnv{background:#14229a;color:#f5b800}
 .logos{display:flex;gap:6px;align-items:center}
@@ -570,3 +570,11 @@ main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;col
 @media (max-width:520px){.logos .logo-m{height:30px}.tsw button{padding:5px 9px}}
 .tpick img{max-height:96px;width:auto;max-width:100%;object-fit:contain}
 .ed-motto{font-family:var(--f-display);font-style:italic;font-size:clamp(20px,3vw,28px);color:var(--muted);margin-top:4px;letter-spacing:.02em}
+
+/* Fascia tricolore sotto la testata nella vista Tutte: Fuxia, RNV, 1Channel */
+:root[data-testata="tutte"] .mast{box-shadow:none;border-bottom:5px solid transparent;border-image:linear-gradient(90deg,#ec009c 0 33.3%,#14229a 33.3% 66.6%,#dd2e43 66.6% 100%) 1}
+.auth-logos{flex-wrap:wrap;gap:8px;max-width:100%}
+.auth-logos img{height:52px;max-width:31%;object-fit:contain}
+.logos{flex-wrap:nowrap;gap:5px}
+.logos .logo-m{height:34px;max-width:96px;object-fit:contain}
+@media (max-width:520px){.logos .logo-m{height:28px;max-width:74px}}

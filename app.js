@@ -81,7 +81,7 @@ function showAuth(msg,ok){const m=S.authMode;const f={};
     fields=[field('a-email','Email','email',{autocomplete:'email'})];btn='Manda il link';links=[sw('login','Torna all\'accesso')]}
   else if(m==='newpass'){title='Nuova password';sub='Scegli la nuova password per entrare.';
     fields=[field('a-pass','Nuova password (almeno 8 caratteri)','password',{autocomplete:'new-password',minlength:'8'})];btn='Salva la password';links=[]}
-  else{title='Entra in redazione';sub='Fuxia Magazine · Rete NeTVision';
+  else{title='Entra in redazione';sub='FuxiaNet 1 · Fuxia Magazine, Rete NeTVision e 1Channel';
     fields=[field('a-email','Email','email',{autocomplete:'email'}),field('a-pass','Password','password',{autocomplete:'current-password'})];
     btn='Entra';links=[sw('signup','Iscriviti'),sw('reset','Password dimenticata?')]}
   const submit=h('button',{class:'btn primary',type:'submit'},btn);
@@ -213,7 +213,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
   const tab=(v,l,extra)=>h('button',{'aria-current':S.view===v||(v==='tavolo'&&S.view==='articolo')?'page':null,onclick:()=>go(v)},l,extra);
   const T=S.testata;const pending=S.team.filter(p=>p.role==='in_attesa').length;
   const brand=h('div',{class:'brand-row'},T==='tutte'?h('div',{class:'logos'},TK.map(k=>h('img',{class:'logo-m',src:TESTATE[k].logo,alt:TESTATE[k].name}))):h('img',{class:'logo-m',src:TESTATE[T].logo,alt:TESTATE[T].name}),
-    h('div',{class:'brand'},h('small',null,'Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
+    h('div',{class:'brand'},h('small',null,'FuxiaNet 1 · Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
   const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
   m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),

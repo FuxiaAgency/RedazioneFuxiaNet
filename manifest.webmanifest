@@ -1,7 +1,7 @@
 {
-  "name": "Redazione · Fuxia Magazine e Rete NeTVision",
-  "short_name": "Redazione",
-  "description": "La redazione online di Fuxia Magazine e Rete NeTVision.",
+  "name": "FuxiaNet 1 · Redazione",
+  "short_name": "FuxiaNet 1",
+  "description": "La redazione online di Fuxia Magazine, Rete NeTVision e 1Channel.",
   "lang": "it",
   "start_url": "./",
   "scope": "./",
