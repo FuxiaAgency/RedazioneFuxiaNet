@@ -64,10 +64,10 @@ function occItem(o,opts={}){const a=o.a;const k=AK[a.kind]||AK.altro;const c=con
   const when=a.allDay?(a.kind==='scadenza'?'In giornata':'Tutto il giorno'):hhmm(o.at);
   return h('button',{class:'occ'+(o.done?' done':'')+(o.cancelled?' cancelled':'')+(late?' late':''),style:'--k:'+k.c,onclick:()=>apptModal(a,o.key)},
     h('span',{class:'occ-when mono'},opts.showDay?cap(new Date(o.at).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'}))+(a.allDay?'':' · '+hhmm(o.at)):when),
-    h('span',{class:'occ-main'},h('span',{class:'occ-kind'},k.l,a.repeat!=='no'?' · '+AREP[a.repeat].toLowerCase():''),
+    h('span',{class:'occ-main'},h('span',{class:'occ-top'},a.testata&&TESTATE[a.testata]?tchip(a.testata):null,h('span',{class:'occ-kind'},k.l,a.repeat!=='no'?' · '+AREP[a.repeat].toLowerCase():'')),
       h('b',null,apTitle(a)),
       (c||art)?h('span',{class:'occ-sub'},[c?c.name+(c.phone?' · '+c.phone:''):null,art?'Articolo: '+(art.title||'Senza titolo'):null].filter(Boolean).join(' — ')):null),
-    h('span',{class:'occ-side'},a.testata&&S.testata==='tutte'?tchip(a.testata):null,
+    h('span',{class:'occ-side'},
       o.done?h('span',{class:'ast ok'},'Fatto'):o.cancelled?h('span',{class:'ast no'},'Annullato'):a.status==='rinviato'?h('span',{class:'ast mv'},'Rinviato'):late?h('span',{class:'ast late'},'In ritardo'):null,
       a.vis!=='tutti'?h('span',{class:'ast lock',title:AVIS[a.vis]},a.vis==='direzione'?'Direzione':'Privato'):null,
       a.assignee?avatar(a.assignee):null))}
@@ -100,10 +100,11 @@ function renderAgenda(){const mode=S.agMode||'settimana';const ref=S.agDate?from
     const cells=[];for(let d=g0;d<end;d=addDays(d,1)){const k=dkey(d);const list=all.filter(o=>o.key===k);
       cells.push(h('button',{class:'agcell'+(d.getMonth()!==ref.getMonth()?' out':'')+(k===today?' today':''),onclick:()=>{S.agMode='giorno';S.agDate=k;render()},'aria-label':longDay(d)+(list.length?', '+list.length+' impegni':'')},
         h('span',{class:'agnum'},d.getDate()),
-        h('span',{class:'agdots'},list.slice(0,3).map(o=>h('span',{class:'agchip'+(o.done||o.cancelled?' done':''),style:'--k:'+AK[o.a.kind].c},(o.a.allDay?'':hhmm(o.at)+' ')+apTitle(o.a))),
+        h('span',{class:'agdots'},list.slice(0,3).map(o=>h('span',{class:'agchip'+(o.done||o.cancelled?' done':''),style:'--k:'+AK[o.a.kind].c+(o.a.testata?';--t:'+({fuxia:'#ec009c',rnv:'#14229a',ch1:'#dd2e43'}[o.a.testata]||'#999'):'')},o.a.testata?h('i',{class:'tdot t-'+o.a.testata,title:TESTATE[o.a.testata]?TESTATE[o.a.testata].name:''}):null,(o.a.allDay?'':hhmm(o.at)+' ')+apTitle(o.a))),
           list.length>3?h('span',{class:'agmore'},'+'+(list.length-3)):null)))}
     body=h('div',{class:'agmonth'},GIORNI.map(g=>h('div',{class:'aghead'},g)),cells)}
-  const legend=h('div',{class:'aglegend'},Object.values(AK).map(k=>h('span',{style:'--k:'+k.c},k.l)));
+  const legend=h('div',{class:'aglegend-wrap'},h('div',{class:'aglegend'},Object.values(AK).map(k=>h('span',{style:'--k:'+k.c},k.l))),
+    h('div',{class:'aglegend'},h('b',{style:'font-size:12px'},'Testate:'),TK.map(t=>tchip(t)),h('span',{class:'muted',style:'font-size:12px'},'Scegli in alto quale testata vedere, o "Tutte".')));
   return h('div',null,top,bar,body,legend)}
 
 /* ---------- modulo appuntamento ---------- */
@@ -124,6 +125,8 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
     const team=S.team.filter(p=>p.role==='redattore'||p.role==='direttore');
     let draw=function(){const ro=!edit;
       wrap.replaceChildren(
+        h('div',{class:'field wide'},h('label',null,'Per quale testata'),h('div',{class:'tseg wrap',role:'group','aria-label':'Per quale testata'},
+          [[null,'Tutte'],...TK.map(t=>[t,TESTATE[t].short])].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String((d.testata||null)===k),disabled:ro||null,onclick:()=>{d.testata=k;draw()}},l)))),
         h('div',{class:'field wide'},h('label',null,'Tipo'),seg('Tipo',Object.entries(AK).map(([k,v])=>[k,v.l]),d.kind,v=>{d.kind=v;if(v==='scadenza'&&isNew)d.allDay=true})),
         field('ap-title','Titolo (facoltativo)',h('input',{id:'ap-title',value:d.title,placeholder:'Es. Intervista telefonica con l\'artista',oninput:e=>{d.title=e.target.value},readonly:ro||null}),true),
         field('ap-day',d.kind==='scadenza'?'Entro il giorno':'Giorno',h('input',{id:'ap-day',type:'date',value:d.day,onchange:e=>{d.day=e.target.value},readonly:ro||null})),
@@ -134,12 +137,10 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
           AREM.map(([v,l])=>h('option',{value:v==null?'':String(v),selected:(d.remind==null?v==null:d.remind===v)||null},remLabel(v,l,d.allDay))))),
         field('ap-contact','Contatto in Rubrica',h('select',{id:'ap-contact',disabled:ro||null,onchange:e=>{d.contactId=e.target.value||null;callSlot.replaceChildren(callBox()||'')}},h('option',{value:''},'— Nessuno —'),
           contacts.map(c=>h('option',{value:c.id,selected:c.id===d.contactId||null},c.name+(c.org?' · '+c.org:''))))),
-        field('ap-art','Articolo collegato',h('select',{id:'ap-art',disabled:ro||null,onchange:e=>{d.articleId=e.target.value||null}},h('option',{value:''},'— Nessuno —'),
+        field('ap-art','Articolo collegato',h('select',{id:'ap-art',disabled:ro||null,onchange:e=>{d.articleId=e.target.value||null;const x=articleById(d.articleId);if(x&&!d.testata){d.testata=tOf(x);draw()}}},h('option',{value:''},'— Nessuno —'),
           arts.map(x=>h('option',{value:x.id,selected:x.id===d.articleId||null},(x.title||'Senza titolo')+' · '+TESTATE[tOf(x)].short)))),
         field('ap-who','Assegnato a',h('select',{id:'ap-who',disabled:ro||null,onchange:e=>{d.assignee=e.target.value||null}},h('option',{value:''},'— Nessuno —'),
           team.map(p=>h('option',{value:p.id,selected:p.id===d.assignee||null},p.name+(p.id===S.me.id?' (tu)':''))))),
-        field('ap-testata','Testata',h('select',{id:'ap-testata',disabled:ro||null,onchange:e=>{d.testata=e.target.value||null}},
-          [['','Tutte'],['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel']].map(([v,l])=>h('option',{value:v,selected:(d.testata||'')===v||null},l)))),
         h('div',{class:'field wide'},h('label',null,'Chi lo vede'),seg('Chi lo vede',Object.entries(AVIS),d.vis,v=>{d.vis=v},k=>ro||(k==='direzione'&&!S.me.isDir))),
         field('ap-rep','Ripetizione',h('select',{id:'ap-rep',disabled:ro||null,onchange:e=>{d.repeat=e.target.value;draw()}},Object.entries(AREP).map(([k,l])=>h('option',{value:k,selected:d.repeat===k||null},l)))),
         d.repeat!=='no'?field('ap-until','Fino al (facoltativo)',h('input',{id:'ap-until',type:'date',value:d.until,onchange:e=>{d.until=e.target.value},readonly:ro||null})):h('div'),
@@ -177,7 +178,7 @@ function icsDate(t){const d=new Date(t);return d.getFullYear()+p2(d.getMonth()+1
 function buildIcs(a){const c=contactById(a.contactId);const art=articleById(a.articleId);
   const desc=[AK[a.kind].l,c?'Contatto: '+c.name+(c.phone?' – '+c.phone:'')+(c.email?' – '+c.email:''):'',art?'Articolo: '+(art.title||'Senza titolo'):'',a.notes].filter(Boolean).join('\n');
   const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FuxiaNet//Redazione//IT','CALSCALE:GREGORIAN','BEGIN:VEVENT',
-    'UID:'+a.id+'@redazione-fuxianet','DTSTAMP:'+icsUtc(Date.now()),'SUMMARY:'+icsEsc(apTitle(a)),'DESCRIPTION:'+icsEsc(desc)];
+    'UID:'+a.id+'@redazione-fuxianet','DTSTAMP:'+icsUtc(Date.now()),'SUMMARY:'+icsEsc((a.testata&&TESTATE[a.testata]?'['+TESTATE[a.testata].short+'] ':'')+apTitle(a)),'DESCRIPTION:'+icsEsc(desc)];
   if(a.allDay){L.push('DTSTART;VALUE=DATE:'+icsDate(a.start),'DTEND;VALUE=DATE:'+icsDate(addDays(new Date(a.start),1)))}
   else L.push('DTSTART:'+icsUtc(a.start),'DTEND:'+icsUtc(a.start+30*60000));
   if(c&&c.address)L.push('LOCATION:'+icsEsc(c.address));

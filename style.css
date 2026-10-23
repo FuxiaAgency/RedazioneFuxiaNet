@@ -578,3 +578,18 @@ main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;col
 .logos{flex-wrap:nowrap;gap:5px}
 .logos .logo-m{height:34px;max-width:96px;object-fit:contain}
 @media (max-width:520px){.logos .logo-m{height:28px;max-width:74px}}
+
+/* Testata negli appuntamenti */
+.occ-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.occ-top .tchip{font-size:9px;padding:2px 6px 1px}
+.tdot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle;background:#999}
+.tdot.t-fuxia{background:#ec009c}.tdot.t-rnv{background:#14229a;box-shadow:inset 0 0 0 1.5px #f5b800}.tdot.t-ch1{background:#dd2e43;box-shadow:inset 0 -2px 0 #3d8924}
+.aglegend-wrap{display:grid;gap:8px;margin-top:14px}
+.aglegend-wrap .aglegend{margin-top:0;align-items:center}
+.apform .tseg{flex-wrap:wrap}
+.apform .tseg button{color:var(--s-muted);border-color:var(--s-rule);padding:7px 14px}
+.apform .tseg:not(.agseg) button:not([class*="t-"])[aria-pressed=true]{background:var(--s-ink);border-color:var(--s-ink);color:var(--s-sheet)}
+.tseg button[aria-pressed=true].t-ch1{background:#dd2e43;border-color:#dd2e43;color:#fff}
+@media (max-width:600px){.agchip .tdot{display:none}.agchip[style*="--t"]{background:linear-gradient(90deg,var(--t) 0 45%,var(--k) 45% 100%)}}
+.aglegend .muted{color:var(--s-muted)}
+.agcol .occ>*,.side .occ>*,.apbox .occ>*{grid-column:1 !important}
