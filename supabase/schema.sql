@@ -355,3 +355,13 @@ do $$ begin
     alter publication supabase_realtime add table public.appuntamenti;
   end if;
 end $$;
+
+-- ---------- 1Channel: terza testata (aggiunta il 23/10/2026)
+alter table public.articles     drop constraint if exists articles_testata_check;
+alter table public.articles     add  constraint articles_testata_check     check (testata in ('fuxia','rnv','ch1'));
+alter table public.appunti      drop constraint if exists appunti_testata_check;
+alter table public.appunti      add  constraint appunti_testata_check      check (testata in ('fuxia','rnv','ch1'));
+alter table public.appuntamenti drop constraint if exists appuntamenti_testata_check;
+alter table public.appuntamenti add  constraint appuntamenti_testata_check check (testata in ('fuxia','rnv','ch1'));
+alter table public.menabo       drop constraint if exists menabo_testata_check;
+alter table public.menabo       add  constraint menabo_testata_check       check (testata in ('fuxia','rnv','ch1'));

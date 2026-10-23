@@ -21,7 +21,7 @@ img{max-width:100%}
   --page:#14229a; --brand-deep:#070d3d; --nav-on:#f5b800; --nav-on-ink:#070d3d;
   --s-ink:#0b1033; --s-muted:#525a86; --s-rule:#d8dcf2; --s-hover:#e8ebfb; --s-tint:#f3f5fd;
   --s-accent:#1b30b5; --s-accent-ink:#ffffff; --s-accent-soft:#e2e6ff; --s-revisione:#0f8b8d}
-:root[data-testata="tutte"]{--page-bg:linear-gradient(135deg,#ec009c 0%,#80149b 50%,#14229a 100%)}
+:root[data-testata="tutte"]{--page-bg:linear-gradient(135deg,#ec009c 0%,#80149b 33%,#14229a 66%,#dd2e43 100%)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --page:#ec009c; --brand-deep:#050203;
   --s-sheet:#1c0a12; --s-ink:#fbe9f1; --s-muted:#d39ab4; --s-rule:#46192c; --s-hover:#2f1020; --s-tint:#26101a;
@@ -549,3 +549,22 @@ main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;col
 .phonefield .btn{white-space:nowrap;text-decoration:none}
 .clink.call{background:var(--s-accent);color:#fff;font-weight:600}
 .clink.call:hover{color:#fff;filter:brightness(1.08)}
+
+/* ---------- 1Channel: rosso, verde e oro del logo ---------- */
+:root[data-testata="ch1"]{
+  --page:#dd2e43; --brand-deep:#1c1c1e; --nav-on:#e0bf13; --nav-on-ink:#1c1c1e;
+  --s-ink:#1f0e11; --s-muted:#76545a; --s-rule:#f1d3d8; --s-hover:#fdebee; --s-tint:#fff5f6;
+  --s-accent:#c4213a; --s-accent-ink:#ffffff; --s-accent-soft:#fde3e7; --s-pronto:#3d8924}
+@media (prefers-color-scheme:dark){:root[data-testata="ch1"]:not([data-theme="light"]){
+  --page:#9e1f30; --brand-deep:#0e0e0f; --s-sheet:#1d1214; --s-ink:#fbeef0; --s-muted:#d3a4ab; --s-rule:#46222a; --s-hover:#2e171b; --s-tint:#25161a;
+  --s-accent:#ff5a6e; --s-accent-ink:#1d0b0e; --s-accent-soft:#4a1a22; --s-pronto:#6fc152}}
+:root[data-theme="dark"][data-testata="ch1"]{
+  --page:#9e1f30; --brand-deep:#0e0e0f; --s-sheet:#1d1214; --s-ink:#fbeef0; --s-muted:#d3a4ab; --s-rule:#46222a; --s-hover:#2e171b; --s-tint:#25161a;
+  --s-accent:#ff5a6e; --s-accent-ink:#1d0b0e; --s-accent-soft:#4a1a22; --s-pronto:#6fc152}
+:root[data-testata="ch1"] main,:root[data-testata="ch1"] .mast{--accent:#e0bf13;--accent-ink:#1c1c1e}
+.tsw button[aria-pressed=true].t-ch1{background:#dd2e43;color:#fff}
+.tchip.t-ch1{background:#dd2e43;color:#fff;box-shadow:inset 0 -3px 0 #3d8924}
+.tseg button[aria-pressed=true].t-ch1{background:#dd2e43;border-color:#dd2e43;color:#fff}
+.tpick{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.logos{flex-wrap:wrap}
+@media (max-width:520px){.logos .logo-m{height:30px}.tsw button{padding:5px 9px}}

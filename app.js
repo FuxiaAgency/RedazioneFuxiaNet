@@ -11,9 +11,10 @@ const KINDS={nota:{l:'Nota',c:'var(--accent)'},suggerimento:{l:'Suggerimento',c:
 const BATTUTE_CARTELLA=1800;
 const TESTATE={
   fuxia:{k:'fuxia',name:'Fuxia Magazine',short:'Fuxia',logo:'img/fuxia_logo.png',banner:'img/fuxia_banner.jpg',motto:'Non è per tutti. È per chi vibra.'},
-  rnv:{k:'rnv',name:'Rete NeTVision',short:'RNV',logo:'img/rnv_logo.png',banner:'img/rnv_banner.jpg',motto:'Rete NeTVision'}};
-const TK=['fuxia','rnv'];
-const tOf=a=>a&&a.testata==='rnv'?'rnv':'fuxia';
+  rnv:{k:'rnv',name:'Rete NeTVision',short:'RNV',logo:'img/rnv_logo.png',banner:'img/rnv_banner.jpg',motto:'Rete NeTVision'},
+  ch1:{k:'ch1',name:'1Channel',short:'1Channel',logo:'img/ch1_logo.png',banner:'img/ch1_banner.jpg',motto:'Luxury & Media'}};
+const TK=['fuxia','rnv','ch1'];
+const tOf=a=>a&&TESTATE[a.testata]?a.testata:'fuxia';
 const inT=a=>S.testata==='tutte'||tOf(a)===S.testata;
 const viewT=()=>S.testata==='tutte'?TK:[S.testata];
 const tchip=t=>h('span',{class:'tchip t-'+t},TESTATE[t].short);
@@ -213,7 +214,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
   const T=S.testata;const pending=S.team.filter(p=>p.role==='in_attesa').length;
   const brand=h('div',{class:'brand-row'},T==='tutte'?h('div',{class:'logos'},TK.map(k=>h('img',{class:'logo-m',src:TESTATE[k].logo,alt:TESTATE[k].name}))):h('img',{class:'logo-m',src:TESTATE[T].logo,alt:TESTATE[T].name}),
     h('div',{class:'brand'},h('small',null,'Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
-  const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
+  const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
   m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
@@ -433,7 +434,7 @@ function renderEdizione(){return h('div',{class:'ed-stack'},viewT().map(renderEd
 function renderEdizioneFor(t){const ord=mbOrder(t);const rank=a=>ord.has(a.id)?ord.get(a.id):1e6;
   const pub=S.articles.filter(a=>a.status==='pubblicato'&&tOf(a)===t).sort((x,y)=>(rank(x)-rank(y))||((y.publishedAt||0)-(x.publishedAt||0)));
   ensurePeople(pub.map(a=>a.authorId));
-  const head=h('div',{class:'ed-head'},h('h1',null,TESTATE[t].name),h('p',null,new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+pub.length+' articoli pubblicati'));
+  const head=h('div',{class:'ed-head'},h('h1',null,TESTATE[t].name),h('p',null,new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+pub.length+(pub.length===1?' articolo pubblicato':' articoli pubblicati')));
   const banner=h('img',{class:'banner-img',src:TESTATE[t].banner,alt:TESTATE[t].name+' · '+TESTATE[t].motto});
   if(!pub.length)return h('div',null,banner,h('div',{class:'sheet'},head,h('p',{class:'muted',style:'text-align:center'},'Ancora nessun articolo pubblicato per '+TESTATE[t].name+'. Quando il direttore pubblica un pezzo, appare qui come lo leggeranno i lettori.')));
   const [lead,...rest]=pub;const lp=lead.coverId&&photoById(lead.coverId);
@@ -614,7 +615,7 @@ function renderAppunti(){const all=S.appunti.filter(apInView);
   const link=h('input',{id:'ap-link',class:'quote',type:'url',placeholder:'Link utile (facoltativo)',style:'width:100%;margin-top:8px'});
   const keep=()=>({t:ta.value,l:link.value});const restore=k=>{const t=document.getElementById('ap-text'),l=document.getElementById('ap-link');if(t){t.value=k.t;t.focus()}if(l)l.value=k.l};
   const kinds=h('div',{class:'kinds',role:'group','aria-label':'Tipo di appunto'},Object.entries(AP_KINDS).map(([k,v])=>h('button',{type:'button',style:'--k:'+v.c,'aria-pressed':String(S.apKind===k),onclick:()=>{const kk=keep();S.apKind=k;render();restore(kk)}},v.l)));
-  const tsel=h('div',{class:'tseg',role:'group','aria-label':'Per quale testata'},[[null,'Entrambe'],['fuxia','Fuxia'],['rnv','RNV']].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String(S.apTestata===k),onclick:()=>{const kk=keep();S.apTestata=k;render();restore(kk)}},l)));
+  const tsel=h('div',{class:'tseg',role:'group','aria-label':'Per quale testata'},[[null,'Tutte'],['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel']].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String(S.apTestata===k),onclick:()=>{const kk=keep();S.apTestata=k;render();restore(kk)}},l)));
   async function add(){const text=ta.value.trim();if(!text){ta.focus();return}
     try{await q(sb.from('appunti').insert({kind:S.apKind,text,link:link.value.trim(),testata:S.apTestata,by_id:S.me.id}));ta.value='';link.value='';toast('Appunto aggiunto');loadAppunti()}catch(e){toast(errMsg(e))}}
   const composer=S.me.canWrite?h('section',{class:'panel',style:'margin-bottom:18px'},h('h2',null,'Nuovo appunto'),
@@ -633,7 +634,7 @@ function apEditForm(a){const d=S.apDraft;const k=AP_KINDS[d.kind]||AP_KINDS.prom
     h('div',{class:'kinds',role:'group','aria-label':'Tipo di appunto'},Object.entries(AP_KINDS).map(([kk,v])=>h('button',{type:'button',style:'--k:'+v.c,'aria-pressed':String(d.kind===kk),onclick:()=>{d.kind=kk;render()}},v.l))),
     h('textarea',{id:'ap-edit-text','aria-label':'Testo dell\'appunto',value:d.text,oninput:e=>{d.text=e.target.value},style:'width:100%;min-height:110px;border:1px solid var(--rule);background:var(--paper);color:var(--ink);border-radius:8px;padding:10px;resize:vertical;font:inherit'}),
     h('input',{id:'ap-edit-link',class:'quote',type:'url','aria-label':'Link',placeholder:'Link utile (facoltativo)',value:d.link,oninput:e=>{d.link=e.target.value},style:'width:100%'}),
-    h('div',{class:'filt',style:'gap:8px;flex-wrap:wrap'},h('span',null,'Testata'),h('div',{class:'tseg',role:'group','aria-label':'Testata'},[[null,'Entrambe'],['fuxia','Fuxia'],['rnv','RNV']].map(([kk,l])=>h('button',{type:'button',class:kk?'t-'+kk:'','aria-pressed':String(d.testata===kk),onclick:()=>{d.testata=kk;render()}},l)))),
+    h('div',{class:'filt',style:'gap:8px;flex-wrap:wrap'},h('span',null,'Testata'),h('div',{class:'tseg',role:'group','aria-label':'Testata'},[[null,'Tutte'],['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel']].map(([kk,l])=>h('button',{type:'button',class:kk?'t-'+kk:'','aria-pressed':String(d.testata===kk),onclick:()=>{d.testata=kk;render()}},l)))),
     h('div',{class:'ops'},h('button',{class:'btn primary sm',onclick:save},'Salva'),h('button',{class:'btn sm',onclick:()=>{S.apEditing=null;S.apDraft=null;render()}},'Annulla')))}
 function apCard(a){if(S.apEditing===a.id&&S.apDraft)return apEditForm(a);const k=AP_KINDS[a.kind]||AP_KINDS.promemoria;const mine=a.by===S.me.id;
   const act=p=>p.then(r=>{if(r&&r.error)throw r.error;loadAppunti()}).catch(e=>toast(errMsg(e)));

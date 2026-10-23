@@ -139,7 +139,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
         field('ap-who','Assegnato a',h('select',{id:'ap-who',disabled:ro||null,onchange:e=>{d.assignee=e.target.value||null}},h('option',{value:''},'— Nessuno —'),
           team.map(p=>h('option',{value:p.id,selected:p.id===d.assignee||null},p.name+(p.id===S.me.id?' (tu)':''))))),
         field('ap-testata','Testata',h('select',{id:'ap-testata',disabled:ro||null,onchange:e=>{d.testata=e.target.value||null}},
-          [['','Entrambe'],['fuxia','Fuxia'],['rnv','RNV']].map(([v,l])=>h('option',{value:v,selected:(d.testata||'')===v||null},l)))),
+          [['','Tutte'],['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel']].map(([v,l])=>h('option',{value:v,selected:(d.testata||'')===v||null},l)))),
         h('div',{class:'field wide'},h('label',null,'Chi lo vede'),seg('Chi lo vede',Object.entries(AVIS),d.vis,v=>{d.vis=v},k=>ro||(k==='direzione'&&!S.me.isDir))),
         field('ap-rep','Ripetizione',h('select',{id:'ap-rep',disabled:ro||null,onchange:e=>{d.repeat=e.target.value;draw()}},Object.entries(AREP).map(([k,l])=>h('option',{value:k,selected:d.repeat===k||null},l)))),
         d.repeat!=='no'?field('ap-until','Fino al (facoltativo)',h('input',{id:'ap-until',type:'date',value:d.until,onchange:e=>{d.until=e.target.value},readonly:ro||null})):h('div'),

@@ -13,7 +13,7 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 | `index.html` | La pagina dell'app |
 | `app.js` | Tutta la logica |
 | `agenda.js` | Agenda (appuntamenti, calendario, file .ics) e pagina Oggi |
-| `style.css` | Aspetto e colori (fucsia per Fuxia, blu e oro per RNV) |
+| `style.css` | Aspetto e colori (fucsia per Fuxia, blu e oro per RNV, rosso-verde-oro per 1Channel) |
 | `config.js` | Indirizzo e chiave pubblica di Supabase |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installazione sul telefono |
 | `img/` | Loghi e banner delle testate |
@@ -65,3 +65,7 @@ L'icona attuale è "FuxiaNet" (Fuxia bianco, Net oro) su sfumatura fucsia-blu co
 ## Menabò
 
 Tolto dal menu su richiesta della redazione (21/10/2026). Il codice (`renderMenabo`) e la tabella `menabo` restano: per ripristinarlo basta rimettere la voce nel menu, in `parseHash` e togliere i `return` iniziali di `where()` e `mbOrder()`.
+
+## Testate
+
+Tre testate: `fuxia` (Fuxia Magazine), `rnv` (Rete NeTVision), `ch1` (1Channel, aggiunta il 23/10/2026). Per aggiungerne un'altra: voce in `TESTATE` e `TK` in `app.js`, pulsanti testata (`tsw`, `tseg`, selettori in Appunti e Agenda), tema `:root[data-testata="..."]` e chip in `style.css`, logo e banner in `img/`, e i vincoli `*_testata_check` nel database (vedi fondo di `supabase/schema.sql`).
