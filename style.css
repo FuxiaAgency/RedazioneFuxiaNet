@@ -569,3 +569,4 @@ main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;col
 .logos{flex-wrap:wrap}
 @media (max-width:520px){.logos .logo-m{height:30px}.tsw button{padding:5px 9px}}
 .tpick img{max-height:96px;width:auto;max-width:100%;object-fit:contain}
+.ed-motto{font-family:var(--f-display);font-style:italic;font-size:clamp(20px,3vw,28px);color:var(--muted);margin-top:4px;letter-spacing:.02em}

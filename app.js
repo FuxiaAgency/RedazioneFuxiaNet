@@ -12,7 +12,7 @@ const BATTUTE_CARTELLA=1800;
 const TESTATE={
   fuxia:{k:'fuxia',name:'Fuxia Magazine',short:'Fuxia',logo:'img/fuxia_logo.png',banner:'img/fuxia_banner.jpg',motto:'Non è per tutti. È per chi vibra.'},
   rnv:{k:'rnv',name:'Rete NeTVision',short:'RNV',logo:'img/rnv_logo.png',banner:'img/rnv_banner.jpg',motto:'Rete NeTVision'},
-  ch1:{k:'ch1',name:'1Channel',short:'1Channel',logo:'img/ch1_logo.png',banner:'img/ch1_banner.jpg',motto:'Luxury & Media'}};
+  ch1:{k:'ch1',name:'1Channel',short:'1Channel',logo:'img/ch1_logo.png',banner:'img/ch1_banner.jpg',motto:'Luxury & Media',showMotto:true}};
 const TK=['fuxia','rnv','ch1'];
 const tOf=a=>a&&TESTATE[a.testata]?a.testata:'fuxia';
 const inT=a=>S.testata==='tutte'||tOf(a)===S.testata;
@@ -434,7 +434,7 @@ function renderEdizione(){return h('div',{class:'ed-stack'},viewT().map(renderEd
 function renderEdizioneFor(t){const ord=mbOrder(t);const rank=a=>ord.has(a.id)?ord.get(a.id):1e6;
   const pub=S.articles.filter(a=>a.status==='pubblicato'&&tOf(a)===t).sort((x,y)=>(rank(x)-rank(y))||((y.publishedAt||0)-(x.publishedAt||0)));
   ensurePeople(pub.map(a=>a.authorId));
-  const head=h('div',{class:'ed-head'},h('h1',null,TESTATE[t].name),h('p',null,new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+pub.length+(pub.length===1?' articolo pubblicato':' articoli pubblicati')));
+  const head=h('div',{class:'ed-head'},h('h1',null,TESTATE[t].name),TESTATE[t].showMotto?h('div',{class:'ed-motto'},TESTATE[t].motto):null,h('p',null,new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' · '+pub.length+(pub.length===1?' articolo pubblicato':' articoli pubblicati')));
   const banner=h('img',{class:'banner-img',src:TESTATE[t].banner,alt:TESTATE[t].name+' · '+TESTATE[t].motto});
   if(!pub.length)return h('div',null,banner,h('div',{class:'sheet'},head,h('p',{class:'muted',style:'text-align:center'},'Ancora nessun articolo pubblicato per '+TESTATE[t].name+'. Quando il direttore pubblica un pezzo, appare qui come lo leggeranno i lettori.')));
   const [lead,...rest]=pub;const lp=lead.coverId&&photoById(lead.coverId);
