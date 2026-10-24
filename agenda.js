@@ -11,7 +11,8 @@ const AK={
   riunione:{l:'Riunione',c:'#6a3fd0'},
   incontro:{l:'Incontro',c:'#0f8b8d'},
   scadenza:{l:'Scadenza',c:'#d2560e'},
-  altro:{l:'Altro',c:'#7d6b75'}};
+  altro:{l:'Altro',c:'#7d6b75'},
+  consegna:{l:'Consegna articolo',c:'#a86a00',auto:true}};
 const AST={da_fare:'Da fare',completato:'Completato',rinviato:'Rinviato',annullato:'Annullato'};
 const AVIS={tutti:'Tutta la redazione',direzione:'Solo direzione',privato:'Solo me e l\'assegnato'};
 const AREP={no:'Non si ripete',giorno:'Ogni giorno',settimana:'Ogni settimana',mese:'Ogni mese'};
@@ -46,7 +47,13 @@ function occurrences(a,from,to){
   for(let i=0;i<400;i++,n++){const d=addMonthsKeep(start,n);if(d>=to||(until&&d>=until))break;push(d)}
   return out}
 function apInScope(a){return(S.testata==='tutte'||!a.testata||a.testata===S.testata)&&(!S.agMine||a.assignee===S.me.id||a.by===S.me.id)}
-function occBetween(from,to,list){const out=[];for(const a of(list||S.appt).filter(apInScope))out.push(...occurrences(a,from,to));
+// Le scadenze degli articoli entrano nell'Agenda da sole: sono "appuntamenti virtuali" calcolati dagli articoli,
+// così restano sempre allineate (cambi la consegna e cambia anche qui; pubblicato = fatto).
+function articleDeadlines(){return S.articles.filter(x=>x.deadline).map(x=>({id:'art-'+x.id,kind:'consegna',title:'Consegna: '+(x.title||'Senza titolo'),
+  start:x.deadline,allDay:false,remind:null,notes:'',contactId:null,articleId:x.id,assignee:x.assigneeId||x.authorId,by:x.authorId,vis:'tutti',
+  status:x.status==='pubblicato'?'completato':'da_fare',repeat:'no',until:null,doneDates:[],testata:tOf(x),fromArticle:x}))}
+function occBetween(from,to,list,withArticles){const out=[];const src=(list||S.appt).concat(withArticles?articleDeadlines():[]);
+  for(const a of src.filter(apInScope))out.push(...occurrences(a,from,to));
   return out.sort((x,y)=>(x.a.allDay===y.a.allDay?0:x.a.allDay?-1:1)||x.at-y.at)}
 
 /* ---------- dati ---------- */
@@ -62,13 +69,15 @@ function apTitle(a){if(a.title)return a.title;const c=contactById(a.contactId);r
 function occItem(o,opts={}){const a=o.a;const k=AK[a.kind]||AK.altro;const c=contactById(a.contactId);const art=articleById(a.articleId);
   const late=!o.done&&!o.cancelled&&(a.allDay?o.key<dkey(new Date()):o.at<Date.now());
   const when=a.allDay?(a.kind==='scadenza'?'In giornata':'Tutto il giorno'):hhmm(o.at);
-  return h('button',{class:'occ'+(o.done?' done':'')+(o.cancelled?' cancelled':'')+(late?' late':''),style:'--k:'+k.c,onclick:()=>apptModal(a,o.key)},
+  return h('button',{class:'occ'+(o.done?' done':'')+(o.cancelled?' cancelled':'')+(late?' late':''),style:'--k:'+k.c,onclick:()=>a.fromArticle?go('articolo',a.articleId):apptModal(a,o.key)},
     h('span',{class:'occ-when mono'},opts.showDay?cap(new Date(o.at).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short'}))+(a.allDay?'':' · '+hhmm(o.at)):when),
     h('span',{class:'occ-main'},h('span',{class:'occ-top'},a.testata&&TESTATE[a.testata]?tchip(a.testata):null,h('span',{class:'occ-kind'},k.l,a.repeat!=='no'?' · '+AREP[a.repeat].toLowerCase():'')),
       h('b',null,apTitle(a)),
+      a.fromArticle?h('span',{class:'occ-sub'},'di '+byName(a.fromArticle)+' · tocca per aprire l\'articolo'):
       (c||art)?h('span',{class:'occ-sub'},[c?c.name+(c.phone?' · '+c.phone:''):null,art?'Articolo: '+(art.title||'Senza titolo'):null].filter(Boolean).join(' — ')):null),
     h('span',{class:'occ-side'},
-      o.done?h('span',{class:'ast ok'},'Fatto'):o.cancelled?h('span',{class:'ast no'},'Annullato'):a.status==='rinviato'?h('span',{class:'ast mv'},'Rinviato'):late?h('span',{class:'ast late'},'In ritardo'):null,
+      a.fromArticle?h('span',{class:'pill',style:'--c:'+STATO[a.fromArticle.status||'bozza'].c},STATO[a.fromArticle.status||'bozza'].l):null,
+      a.fromArticle&&o.done?h('span',{class:'ast ok'},'Pubblicato'):o.done?h('span',{class:'ast ok'},'Fatto'):o.cancelled?h('span',{class:'ast no'},'Annullato'):a.status==='rinviato'?h('span',{class:'ast mv'},'Rinviato'):late?h('span',{class:'ast late'},'In ritardo'):null,
       a.vis!=='tutti'?h('span',{class:'ast lock',title:AVIS[a.vis]},a.vis==='direzione'?'Direzione':'Privato'):null,
       a.assignee?avatar(a.assignee):null))}
 
@@ -87,16 +96,16 @@ function renderAgenda(){const mode=S.agMode||'settimana';const ref=S.agDate?from
     h('b',{class:'agtitle'},title),
     h('label',{class:'chk'},h('input',{id:'ag-mine',type:'checkbox',checked:S.agMine||null,onchange:e=>{S.agMine=e.target.checked;render()}}),'Solo i miei'));
   let body;
-  if(mode==='giorno'){const list=occBetween(ref,addDays(ref,1));
+  if(mode==='giorno'){const list=occBetween(ref,addDays(ref,1),null,true);
     body=h('section',{class:'panel agday'},list.length?h('div',{class:'occlist'},list.map(o=>occItem(o))):h('p',{class:'muted',style:'margin:0'},'Nessun impegno in questo giorno.'))}
   else if(mode==='settimana'){const a=weekStart(ref);const today=dkey(new Date());
-    body=h('div',{class:'agweek'},[0,1,2,3,4,5,6].map(i=>{const d=addDays(a,i);const list=occBetween(d,addDays(d,1));
+    body=h('div',{class:'agweek'},[0,1,2,3,4,5,6].map(i=>{const d=addDays(a,i);const list=occBetween(d,addDays(d,1),null,true);
       return h('section',{class:'agcol'+(dkey(d)===today?' today':'')},
         h('button',{class:'agcol-h',onclick:()=>{S.agMode='giorno';S.agDate=dkey(d);render()}},h('span',null,GIORNI[i]),h('b',null,d.getDate())),
         list.length?h('div',{class:'occlist'},list.map(o=>occItem(o))):h('p',{class:'muted agempty'},'—'),
         S.me.canWrite?h('button',{class:'agadd','aria-label':'Aggiungi il '+longDay(d),onclick:()=>apptModal(null,null,{day:dkey(d)})},'＋'):null)}))}
   else{const first=new Date(ref.getFullYear(),ref.getMonth(),1);const g0=weekStart(first);const today=dkey(new Date());
-    const end=addDays(weekStart(new Date(ref.getFullYear(),ref.getMonth()+1,0)),7);const all=occBetween(g0,end);
+    const end=addDays(weekStart(new Date(ref.getFullYear(),ref.getMonth()+1,0)),7);const all=occBetween(g0,end,null,true);
     const cells=[];for(let d=g0;d<end;d=addDays(d,1)){const k=dkey(d);const list=all.filter(o=>o.key===k);
       cells.push(h('button',{class:'agcell'+(d.getMonth()!==ref.getMonth()?' out':'')+(k===today?' today':''),onclick:()=>{S.agMode='giorno';S.agDate=k;render()},'aria-label':longDay(d)+(list.length?', '+list.length+' impegni':'')},
         h('span',{class:'agnum'},d.getDate()),
@@ -127,7 +136,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
       wrap.replaceChildren(
         h('div',{class:'field wide'},h('label',null,'Per quale testata'),h('div',{class:'tseg wrap',role:'group','aria-label':'Per quale testata'},
           [[null,'Tutte'],...TK.map(t=>[t,TESTATE[t].short])].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String((d.testata||null)===k),disabled:ro||null,onclick:()=>{d.testata=k;draw()}},l)))),
-        h('div',{class:'field wide'},h('label',null,'Tipo'),seg('Tipo',Object.entries(AK).map(([k,v])=>[k,v.l]),d.kind,v=>{d.kind=v;if(v==='scadenza'&&isNew)d.allDay=true})),
+        h('div',{class:'field wide'},h('label',null,'Tipo'),seg('Tipo',Object.entries(AK).filter(([k,v])=>!v.auto).map(([k,v])=>[k,v.l]),d.kind,v=>{d.kind=v;if(v==='scadenza'&&isNew)d.allDay=true})),
         field('ap-title','Titolo (facoltativo)',h('input',{id:'ap-title',value:d.title,placeholder:'Es. Intervista telefonica con l\'artista',oninput:e=>{d.title=e.target.value},readonly:ro||null}),true),
         field('ap-day',d.kind==='scadenza'?'Entro il giorno':'Giorno',h('input',{id:'ap-day',type:'date',value:d.day,onchange:e=>{d.day=e.target.value},readonly:ro||null})),
         h('div',{class:'field'},h('label',{for:'ap-time'},'Ora'),

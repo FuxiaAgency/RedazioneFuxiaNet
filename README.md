@@ -62,6 +62,7 @@ L'icona attuale è "FuxiaNet 1" (Fuxia bianco, Net oro, 1 rosso in un riquadro b
 - Visibilità: `privato` lo vedono solo chi l'ha creato e chi è assegnato; `direzione` i direttori più creatore e assegnato. Solo i direttori possono creare appuntamenti `direzione`.
 - Le ripetizioni si calcolano nel browser (`occurrences()` in `agenda.js`). Per gli impegni senza orario il promemoria si conta dalle 9:00 del giorno.
 - "Aggiungi al calendario del telefono" scarica un file .ics con allarme: rete di sicurezza in attesa delle notifiche push.
+- Le consegne degli articoli (campo `deadline`) compaiono da sole nelle viste dell'Agenda come tipo "Consegna articolo": sono calcolate al volo da `articleDeadlines()` in `agenda.js`, non salvate in `appuntamenti`. Toccandole si apre l'articolo.
 - Pagina iniziale: `#oggi`.
 
 ## Menabò
