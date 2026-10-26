@@ -72,3 +72,10 @@ Tolto dal menu su richiesta della redazione (21/10/2026). Il codice (`renderMena
 ## Testate
 
 Tre testate: `fuxia` (Fuxia Magazine), `rnv` (Rete NeTVision), `ch1` (1Channel, aggiunta il 23/10/2026). Per aggiungerne un'altra: voce in `TESTATE` e `TK` in `app.js`, pulsanti testata (`tsw`, `tseg`, selettori in Appunti e Agenda), tema `:root[data-testata="..."]` e chip in `style.css`, logo e banner in `img/`, e i vincoli `*_testata_check` nel database (vedi fondo di `supabase/schema.sql`).
+
+## Collegamenti per Claude
+
+Dal 24/10/2026 Claude ha accesso diretto a questi servizi e applica da solo le modifiche:
+- **GitHub**: `FuxiaAgency/RedazioneFuxiaNet` (Netlify pubblica ogni commit su `main`).
+- **Supabase**: progetto `fvdxjdnomfiouqtvdbxh` ("FuxiaAgency's Project"). Le modifiche al database vanno applicate come migrazione e aggiunte in fondo a `supabase/schema.sql`.
+- **Netlify**: sito `redazione-fuxianet` (id `f6307f00-c7c5-4a0d-94f9-bb22c9519a5f`).

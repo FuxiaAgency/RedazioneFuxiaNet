@@ -365,3 +365,18 @@ alter table public.appuntamenti drop constraint if exists appuntamenti_testata_c
 alter table public.appuntamenti add  constraint appuntamenti_testata_check check (testata in ('fuxia','rnv','ch1'));
 alter table public.menabo       drop constraint if exists menabo_testata_check;
 alter table public.menabo       add  constraint menabo_testata_check       check (testata in ('fuxia','rnv','ch1'));
+
+-- ---------- Sicurezza: percorso fisso per le funzioni dei ruoli e niente accesso anonimo alle funzioni interne (24/10/2026)
+alter function public.is_reader() set search_path = public;
+alter function public.is_member() set search_path = public;
+alter function public.is_director() set search_path = public;
+alter function public.can_see_appuntamento(text, uuid, uuid) set search_path = public;
+revoke execute on function public.my_role() from public, anon;
+revoke execute on function public.acquire_lock(uuid, int) from public, anon;
+revoke execute on function public.release_lock(uuid) from public, anon;
+revoke execute on function public.guard_article() from public, anon, authenticated;
+revoke execute on function public.guard_profile() from public, anon, authenticated;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+grant execute on function public.my_role() to authenticated;
+grant execute on function public.acquire_lock(uuid, int) to authenticated;
+grant execute on function public.release_lock(uuid) to authenticated;
