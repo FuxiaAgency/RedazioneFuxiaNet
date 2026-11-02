@@ -429,3 +429,204 @@ create policy audio_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'audio' and public.is_member());
 create policy audio_delete on storage.objects for delete to authenticated
   using (bucket_id = 'audio' and public.is_member());
+-- ---------- Ruoli per testata (02/11/2026) ----------
+-- Ognuno può avere un ruolo diverso per ogni testata (lettore, redattore, direttore) o nessun ruolo.
+-- Tutti gli approvati leggono tutte le testate; si scrive, corregge e pubblica solo dove si ha il ruolo.
+-- profiles.role ora vale: in_attesa (non approvato), lettore (approvato), direttore (= AMMINISTRATORE: tutto su tutte le testate).
+-- 'redattore' in profiles resta valido solo per compatibilità.
+create table if not exists public.ruoli_testata (
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  testata     text not null check (testata in ('fuxia','rnv','ch1')),
+  role        text not null check (role in ('lettore','redattore','direttore')),
+  updated_at  timestamptz not null default now(),
+  primary key (user_id, testata)
+);
+
+create or replace function public.is_admin() returns boolean
+language sql stable set search_path = public as $$ select coalesce(public.my_role() = 'direttore', false) $$;
+create or replace function public.t_role(t text) returns text
+language sql stable security definer set search_path = public as $$
+  select r.role from public.ruoli_testata r join public.profiles p on p.id = r.user_id
+   where r.user_id = auth.uid() and r.testata = t and p.role <> 'in_attesa'
+$$;
+-- Scrive in almeno una testata (serve per foto, rubrica e materiali senza testata).
+create or replace function public.is_member() returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_admin() or (public.is_reader() and exists (
+    select 1 from public.ruoli_testata where user_id = auth.uid() and role in ('redattore','direttore')))
+$$;
+-- Direttore di almeno una testata.
+create or replace function public.is_director() returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_admin() or (public.is_reader() and exists (
+    select 1 from public.ruoli_testata where user_id = auth.uid() and role = 'direttore'))
+$$;
+create or replace function public.can_write(t text) returns boolean
+language sql stable set search_path = public as $$
+  select case when t is null then public.is_member()
+              else public.is_admin() or coalesce(public.t_role(t) in ('redattore','direttore'), false) end
+$$;
+create or replace function public.is_director_of(t text) returns boolean
+language sql stable set search_path = public as $$
+  select case when t is null then public.is_director()
+              else public.is_admin() or coalesce(public.t_role(t) = 'direttore', false) end
+$$;
+create or replace function public.art_testata(aid uuid) returns text
+language sql stable security definer set search_path = public as $$ select testata from public.articles where id = aid $$;
+
+-- Articoli
+drop policy if exists articles_insert on public.articles;
+drop policy if exists articles_update on public.articles;
+drop policy if exists articles_delete on public.articles;
+create policy articles_insert on public.articles for insert to authenticated
+  with check (public.can_write(testata) and author_id = auth.uid());
+create policy articles_update on public.articles for update to authenticated
+  using (public.can_write(testata)) with check (public.can_write(testata));
+create policy articles_delete on public.articles for delete to authenticated
+  using (public.is_director_of(testata) or (author_id = auth.uid() and status <> 'pubblicato' and public.can_write(testata)));
+
+create or replace function public.guard_article() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.status = 'pubblicato' and not public.is_director_of(new.testata) then
+      raise exception 'Solo il direttore della testata può pubblicare';
+    end if;
+    return new;
+  end if;
+  if public.is_director_of(old.testata) and public.is_director_of(new.testata) then return new; end if;
+  if new.status is distinct from old.status and (new.status = 'pubblicato' or old.status = 'pubblicato') then
+    raise exception 'Solo il direttore della testata può pubblicare o ritirare un articolo';
+  end if;
+  if old.status = 'pubblicato' and
+     (new.title, new.kicker, new.summary, new.section, new.firma, new.body, new.cover_id, new.gallery, new.testata)
+     is distinct from
+     (old.title, old.kicker, old.summary, old.section, old.firma, old.body, old.cover_id, old.gallery, old.testata) then
+    raise exception 'Un articolo pubblicato può modificarlo solo il direttore della testata';
+  end if;
+  return new;
+end $$;
+
+create or replace function public.acquire_lock(aid uuid, secs int default 45) returns boolean
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.can_write(public.art_testata(aid)) then return false; end if;
+  update public.articles
+     set locked_by = auth.uid(), locked_until = now() + make_interval(secs => secs)
+   where id = aid
+     and (locked_by is null or locked_until < now() or locked_by = auth.uid());
+  return found;
+end $$;
+
+-- Note sugli articoli: le lascia chi scrive in quella testata.
+drop policy if exists notes_insert on public.notes;
+drop policy if exists notes_update on public.notes;
+drop policy if exists notes_delete on public.notes;
+create policy notes_insert on public.notes for insert to authenticated
+  with check (by_id = auth.uid() and public.can_write(public.art_testata(article_id)));
+create policy notes_update on public.notes for update to authenticated
+  using (public.can_write(public.art_testata(article_id)));
+create policy notes_delete on public.notes for delete to authenticated
+  using (by_id = auth.uid() or public.is_director_of(public.art_testata(article_id)));
+
+-- Appunti
+drop policy if exists appunti_insert on public.appunti;
+drop policy if exists appunti_update on public.appunti;
+drop policy if exists appunti_delete on public.appunti;
+create policy appunti_insert on public.appunti for insert to authenticated
+  with check (public.can_write(testata) and by_id = auth.uid());
+create policy appunti_update on public.appunti for update to authenticated
+  using (public.can_write(testata)) with check (public.can_write(testata));
+create policy appunti_delete on public.appunti for delete to authenticated
+  using (by_id = auth.uid() or public.is_director_of(testata));
+
+-- Appuntamenti
+drop policy if exists appuntamenti_insert on public.appuntamenti;
+drop policy if exists appuntamenti_update on public.appuntamenti;
+drop policy if exists appuntamenti_delete on public.appuntamenti;
+create policy appuntamenti_insert on public.appuntamenti for insert to authenticated
+  with check (public.can_write(testata) and created_by = auth.uid()
+              and (visibility <> 'direzione' or public.is_director_of(testata)));
+create policy appuntamenti_update on public.appuntamenti for update to authenticated
+  using (public.can_write(testata) and public.can_see_appuntamento(visibility, created_by, assignee_id))
+  with check (public.can_write(testata) and public.can_see_appuntamento(visibility, created_by, assignee_id)
+              and (visibility <> 'direzione' or public.is_director_of(testata)));
+create policy appuntamenti_delete on public.appuntamenti for delete to authenticated
+  using (created_by = auth.uid() or public.is_director_of(testata));
+
+-- Vocali
+drop policy if exists vocali_insert on public.vocali;
+drop policy if exists vocali_update on public.vocali;
+drop policy if exists vocali_delete on public.vocali;
+create policy vocali_insert on public.vocali for insert to authenticated
+  with check (public.can_write(testata) and by_id = auth.uid());
+create policy vocali_update on public.vocali for update to authenticated
+  using (public.can_write(testata)) with check (public.can_write(testata));
+create policy vocali_delete on public.vocali for delete to authenticated
+  using (by_id = auth.uid() or public.is_director_of(testata));
+
+-- Menabò (non usato, ma coerente)
+drop policy if exists menabo_write on public.menabo;
+create policy menabo_write on public.menabo for all to authenticated
+  using (public.is_director_of(testata)) with check (public.is_director_of(testata));
+
+-- Squadra: ogni direttore approva i nuovi iscritti e gestisce i ruoli della sua testata;
+-- solo un amministratore nomina altri amministratori o toglie l'accesso.
+create or replace function public.guard_profile() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.role is distinct from old.role then
+    if public.is_admin() then
+      if old.role = 'direttore' and new.role <> 'direttore'
+         and (select count(*) from public.profiles where role = 'direttore') <= 1 then
+        raise exception 'Serve almeno un amministratore: nominane un altro prima';
+      end if;
+    elsif public.is_director() and old.role = 'in_attesa' and new.role = 'lettore' then
+      null;
+    else
+      raise exception 'Solo un amministratore può cambiare questo accesso';
+    end if;
+  end if;
+  new.id := old.id;
+  new.email := old.email;
+  return new;
+end $$;
+
+alter table public.ruoli_testata enable row level security;
+grant select, insert, update, delete on public.ruoli_testata to authenticated;
+drop policy if exists ruoli_read   on public.ruoli_testata;
+drop policy if exists ruoli_insert on public.ruoli_testata;
+drop policy if exists ruoli_update on public.ruoli_testata;
+drop policy if exists ruoli_delete on public.ruoli_testata;
+create policy ruoli_read   on public.ruoli_testata for select to authenticated using (user_id = auth.uid() or public.is_reader());
+create policy ruoli_insert on public.ruoli_testata for insert to authenticated
+  with check (public.is_director_of(testata)
+              and exists (select 1 from public.profiles p where p.id = user_id and p.role <> 'in_attesa'));
+create policy ruoli_update on public.ruoli_testata for update to authenticated
+  using (public.is_director_of(testata)) with check (public.is_director_of(testata));
+create policy ruoli_delete on public.ruoli_testata for delete to authenticated
+  using (public.is_director_of(testata));
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'ruoli_testata') then
+    alter publication supabase_realtime add table public.ruoli_testata;
+  end if;
+end $$;
+
+revoke execute on function public.t_role(text) from public, anon;
+revoke execute on function public.art_testata(uuid) from public, anon;
+revoke execute on function public.is_member() from public, anon;
+revoke execute on function public.is_director() from public, anon;
+grant execute on function public.t_role(text) to authenticated;
+grant execute on function public.art_testata(uuid) to authenticated;
+grant execute on function public.is_member() to authenticated;
+grant execute on function public.is_director() to authenticated;
+
+-- Passaggio iniziale: ognuno tiene il ruolo che aveva, uguale su tutte e tre le testate.
+insert into public.ruoli_testata (user_id, testata, role)
+select p.id, t, p.role from public.profiles p cross join unnest(array['fuxia','rnv','ch1']) as t
+ where p.role in ('lettore','redattore','direttore')
+   and not exists (select 1 from public.ruoli_testata r where r.user_id = p.id)
+on conflict do nothing;
+alter table public.profiles disable trigger guard_profile;
+update public.profiles set role = 'lettore' where role = 'redattore';
+alter table public.profiles enable trigger guard_profile;

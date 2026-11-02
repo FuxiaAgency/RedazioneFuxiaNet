@@ -21,7 +21,7 @@ const tchip=t=>h('span',{class:'tchip t-'+t},TESTATE[t].short);
 function setTestata(t){S.testata=t;try{localStorage.setItem('redazione.testata',t)}catch(e){}document.documentElement.dataset.testata=t;render()}
 
 const S={me:{id:null,name:'',role:null,isDir:false,canWrite:false},team:[],
-  articles:[],photos:[],appunti:[],vocali:[],vcQ:'',vcEditing:null,vcDraft:'',vcUploading:0,vcBusy:new Set(),contatti:[],appt:[],agMode:'settimana',agDate:null,agMine:false,rbQ:'',apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
+  articles:[],photos:[],appunti:[],vocali:[],vcQ:'',vcEditing:null,vcDraft:'',vcUploading:0,vcBusy:new Set(),roles:{},contatti:[],appt:[],agMode:'settimana',agDate:null,agMine:false,rbQ:'',apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
   view:'tavolo',current:null,notes:[],editing:false,draft:null,
   filter:{q:'',mine:false},noteKind:'nota',hideResolved:false,
   lockTimer:null,saveTimer:null,saving:false,savePending:false,authMode:'login',installEvt:null};
@@ -47,17 +47,20 @@ async function loadMenabo(){const d=await q(sb.from('menabo').select('*'));S.men
 async function loadNotes(){if(S.view!=='articolo'||!S.current)return;const id=S.current;
   const d=await q(sb.from('notes').select('*').eq('article_id',id).order('created_at'));if(S.current!==id)return;
   S.notes=d.map(r=>({id:r.id,kind:r.kind,text:r.text,quote:r.quote,by:r.by_id,at:ms(r.created_at),resolved:r.resolved}));render()}
-async function loadPeople(){const d=await q(sb.from('profiles').select('*').order('created_at'));S.team=d;
+async function loadPeople(){const [d,rt]=await Promise.all([q(sb.from('profiles').select('*').order('created_at')),q(sb.from('ruoli_testata').select('*'))]);S.team=d;
+  S.roles={};for(const r of rt)(S.roles[r.user_id]=S.roles[r.user_id]||{})[r.testata]=r.role;
   S.people=Object.fromEntries(d.map(p=>[p.id,{id:p.id,name:p.name,email:p.email,role:p.role,color:colorFor(p.id)}]));
   const me=S.people[S.me.id];const was=S.me.role;
-  if(me){S.me.name=me.name;S.me.role=me.role;S.me.isDir=me.role==='direttore';S.me.canWrite=me.role==='redattore'||me.role==='direttore';S.me.canRead=me.role!=='in_attesa'}
+  if(me){S.me.name=me.name;S.me.role=me.role;S.me.canRead=me.role!=='in_attesa';S.me.isAdmin=me.role==='direttore';
+    const mine=Object.values(S.roles[S.me.id]||{});
+    S.me.isDir=S.me.isAdmin||(S.me.canRead&&mine.includes('direttore'));S.me.canWrite=S.me.isAdmin||(S.me.canRead&&mine.some(r=>r==='redattore'||r==='direttore'))}
   if(was!==S.me.role){if(S.me.role==='in_attesa'){showWaiting();return}if(!S.started||was==='in_attesa'){enterApp();return}}
   render()}
 function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes(),loadAppunti(),loadContatti(),loadAppt(),loadVocali()]).catch(e=>toast(errMsg(e)))}
 let channel=null;
 function subscribe(){if(channel)return;const ra=later(loadArticles),rp=later(loadPhotos),rpe=later(loadPeople),rm=later(loadMenabo),rn=later(loadNotes,150);
   const on=(c,t,f)=>c.on('postgres_changes',{event:'*',schema:'public',table:t},f);
-  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));on(channel,'contatti',later(loadContatti));on(channel,'appuntamenti',later(loadAppt));on(channel,'vocali',later(loadVocali,400));channel.subscribe()}
+  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));on(channel,'contatti',later(loadContatti));on(channel,'appuntamenti',later(loadAppt));on(channel,'ruoli_testata',rpe);on(channel,'vocali',later(loadVocali,400));channel.subscribe()}
 /* ---------- accesso ---------- */
 function shell(){document.documentElement.dataset.testata=S.testata}
 async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.id;
@@ -103,20 +106,47 @@ function showWaiting(){if(S.authMode==='newpass')return;authFrame(h('h1',null,'Q
   h('p',null,'Il tuo account è stato creato. Ora un direttore deve darti accesso alla redazione: appena lo fa, questa pagina si apre da sola.'),
   h('div',{class:'auth-links'},h('button',{type:'button',onclick:()=>loadPeople().catch(()=>{})},'Controlla di nuovo'),h('button',{type:'button',onclick:()=>sb.auth.signOut()},'Esci')))}
 function showSetup(){authFrame(h('h1',null,'Configurazione mancante'),h('p',null,'Inserisci l\'indirizzo del progetto Supabase e la chiave pubblica nel file config.js, poi ricarica la pagina.'))}
-/* ---------- squadra (solo direttori) ---------- */
-const RUOLI={in_attesa:'In attesa',lettore:'Lettore',redattore:'Redattore',direttore:'Direttore'};
+/* ---------- squadra: ruoli per testata ---------- */
+const RUOLI={in_attesa:'In attesa',lettore:'Lettore',redattore:'Redattore',direttore:'Direttore',amministratore:'Amministratore'};
+const TRUOLI=[['','Nessun ruolo'],['lettore','Lettore'],['redattore','Redattore'],['direttore','Direttore']];
+function myRoleLabel(){if(S.me.isAdmin)return'Amministratore';const t=S.testata;
+  if(t==='tutte')return S.me.isDir?'Direttore':S.me.canWrite?'Redattore':'Lettore';
+  const r=tRole(t);return r?RUOLI[r]+' · '+TESTATE[t].short:'Lettore'}
+async function setTRole(p,t,v){
+  try{if(p.role==='in_attesa'&&v)await q(sb.from('profiles').update({role:'lettore'}).eq('id',p.id));
+    if(v)await q(sb.from('ruoli_testata').upsert({user_id:p.id,testata:t,role:v,updated_at:new Date().toISOString()}));
+    else await q(sb.from('ruoli_testata').delete().eq('user_id',p.id).eq('testata',t));
+    toast(p.name+' · '+TESTATE[t].name+': '+(v?RUOLI[v]:'nessun ruolo'))}
+  catch(err){toast(errMsg(err))}
+  loadPeople()}
+async function setAccess(p,v){try{await q(sb.from('profiles').update({role:v}).eq('id',p.id));
+    toast(p.name+': '+(v==='direttore'?'ora è amministratore':v==='in_attesa'?'accesso sospeso':'accesso normale'))}catch(err){toast(errMsg(err))}loadPeople()}
+function memberCard(p){const admin=p.role==='direttore',pend=p.role==='in_attesa';const rs=S.roles[p.id]||{};
+  const rows=admin?h('p',{class:'muted',style:'margin:0;font-size:13px'},'Amministratore: è direttore di tutte e tre le testate e gestisce tutta la squadra.')
+    :h('div',{class:'troles'},TK.map(t=>{const can=isDirT(t);const cur=rs[t]||'';
+      const sel=h('select',{id:'tr-'+p.id+'-'+t,'aria-label':'Ruolo di '+p.name+' in '+TESTATE[t].name,disabled:!can||null,onchange:e=>setTRole(p,t,e.target.value)},
+        TRUOLI.map(([k,l])=>h('option',{value:k,selected:cur===k||null},l)));
+      return h('label',{class:'trole t-'+t+(cur?' on':'')},h('span',{class:'tchip t-'+t},TESTATE[t].short),sel)}));
+  let access=null;
+  if(S.me.isAdmin&&p.id!==S.me.id){
+    access=h('select',{id:'acc-'+p.id,'aria-label':'Accesso di '+p.name,onchange:e=>setAccess(p,e.target.value)},
+      [['in_attesa','In attesa / sospeso'],['lettore','Accesso normale'],['direttore','Amministratore']].map(([k,l])=>h('option',{value:k,selected:(p.role===k||(k==='lettore'&&p.role==='redattore'))||null},l)))}
+  else if(pend)access=h('button',{class:'btn sm primary',onclick:()=>setAccess(p,'lettore')},'Approva');
+  return h('div',{class:'member'+(pend?' pending':'')},
+    h('div',{class:'mhead'},avatar(p.id),h('div',{class:'who2'},h('b',null,p.name+(p.id===S.me.id?' (tu)':'')),h('span',null,pend?'In attesa di approvazione · '+(p.email||''):(p.email||''))),access),
+    pend?h('p',{class:'muted',style:'margin:0;font-size:13px'},'Scegli il ruolo in una testata per approvarlo, oppure premi Approva: vedrà tutto ma non scriverà finché non gli dai un ruolo.'):null,
+    rows)}
 function renderSquadra(){if(!S.me.isDir)return h('p',{class:'muted'},'Questa sezione è riservata ai direttori.');
-  const team=[...S.team].sort((a,b)=>(a.role==='in_attesa'?0:1)-(b.role==='in_attesa'?0:1)||a.name.localeCompare(b.name));
+  const team=[...S.team].sort((a,b)=>(a.role==='in_attesa'?0:1)-(b.role==='in_attesa'?0:1)||(a.role==='direttore'?0:1)-(b.role==='direttore'?0:1)||a.name.localeCompare(b.name));
   const link=location.origin+location.pathname;
+  const mineT=TK.filter(isDirT);
   return h('div',null,h('div',{class:'toolbar'},h('h1',null,'Squadra'),h('span',{class:'muted'},team.length+' persone')),
     h('div',{class:'agenda'},h('div',{class:'eyebrow'},'Come invitare un collega'),
-      h('p',{style:'margin:8px 0 10px'},'Mandagli il link della redazione. Si iscrive con la sua email, compare qui come "In attesa" e tu scegli il suo ruolo.'),
+      h('p',{style:'margin:8px 0 10px'},'Mandagli il link della redazione. Si iscrive con la sua email, compare qui come "In attesa" e tu scegli il suo ruolo in ciascuna testata.'),
       h('div',{class:'install'},h('code',{class:'mono',style:'overflow-wrap:anywhere'},link),h('button',{class:'btn sm',onclick:()=>{navigator.clipboard&&navigator.clipboard.writeText(link).then(()=>toast('Link copiato'),()=>toast('Copia il link selezionandolo'))}},'Copia link'))),
-    h('div',{class:'team'},team.map(p=>{const sel=h('select',{id:'role-'+p.id,'aria-label':'Ruolo di '+p.name,onchange:async e=>{const v=e.target.value;
-        try{await q(sb.from('profiles').update({role:v}).eq('id',p.id));toast(p.name+': '+RUOLI[v]);loadPeople()}catch(err){toast(errMsg(err));loadPeople()}}},
-      Object.entries(RUOLI).map(([k,l])=>h('option',{value:k,selected:p.role===k||null},l)));
-      return h('div',{class:'member'+(p.role==='in_attesa'?' pending':'')},avatar(p.id),h('div',{class:'who2'},h('b',null,p.name+(p.id===S.me.id?' (tu)':'')),h('span',null,p.email||'')),sel)})),
-    h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Lettore: vede tutto ma non scrive. Redattore: scrive, corregge, lascia note e carica foto. Direttore: in più pubblica e gestisce la squadra.'))}
+    S.me.isAdmin?null:h('div',{class:'banner'},'Puoi cambiare i ruoli di: ',mineT.map(t=>tchip(t))),
+    h('div',{class:'team'},team.map(memberCard)),
+    h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Tutti vedono tutte le testate. Lettore: legge e basta. Redattore: in quella testata scrive, corregge, lascia note, carica foto e vocali. Direttore: in più pubblica e gestisce i ruoli di quella testata. Amministratore: tutto, su tutte le testate.'))}
 /* ---------- profilo e installazione ---------- */
 function profileModal(){modal({title:'Il mio profilo',small:true,body:close=>{
   const nm=h('input',{id:'my-name',class:'search',style:'width:100%',value:S.me.name||'',maxlength:'80'});
@@ -124,7 +154,7 @@ function profileModal(){modal({title:'Il mio profilo',small:true,body:close=>{
   const inst=standalone?null:h('div',{class:'agenda',style:'margin:0'},h('div',{class:'eyebrow'},'App sul telefono'),
     S.installEvt?h('div',{style:'margin-top:8px'},h('button',{class:'btn primary sm',onclick:async()=>{const ev=S.installEvt;S.installEvt=null;ev.prompt();close()}},'Installa l\'app')):
     h('p',{style:'margin:8px 0 0;font-size:14px'},ios?'Su iPhone: tocca il pulsante Condividi di Safari, poi "Aggiungi alla schermata Home".':'Apri il menu del browser e scegli "Installa app" o "Aggiungi a schermata Home".'));
-  return{body:h('div',{style:'display:grid;gap:14px'},h('div',{class:'field'},h('label',{for:'my-name'},'Il mio nome'),nm),h('p',{class:'muted',style:'margin:0;font-size:13px'},'Ruolo: '+RUOLI[S.me.role||'lettore']),inst),
+  return{body:h('div',{style:'display:grid;gap:14px'},h('div',{class:'field'},h('label',{for:'my-name'},'Il mio nome'),nm),h('p',{class:'muted',style:'margin:0;font-size:13px'},'Ruolo: '+myRoleLabel()),inst),
     foot:[h('button',{class:'btn danger',onclick:()=>sb.auth.signOut()},'Esci'),h('div',{class:'spacer'}),h('button',{class:'btn',onclick:close},'Chiudi'),
       h('button',{class:'btn primary',onclick:async()=>{const v=nm.value.trim();if(!v)return;try{await q(sb.from('profiles').update({name:v}).eq('id',S.me.id));close();toast('Nome aggiornato');loadPeople()}catch(e){toast(errMsg(e))}}},'Salva')]}}})}
 /* ---------- utilità ---------- */
@@ -155,9 +185,14 @@ function errMsg(e){const m=String((e&&(e.message||e.error_description))||'');
   if(/Payload too large|exceeded|maximum allowed size/i.test(m))return'La foto è troppo grande: il limite è 50 MB.';
   if(/fetch|network|Failed to fetch/i.test(m))return'Connessione assente. Controlla internet e riprova.';
   return m?'Operazione non riuscita: '+m:'Operazione non riuscita. Riprova.'}
-function canSetStatus(art,k){if(!S.me.canWrite)return false;if(k==='pubblicato'||art.status==='pubblicato')return S.me.isDir;return true}
-function canEditArt(art){return S.me.canWrite&&(art.status!=='pubblicato'||S.me.isDir)}
-function canDeleteArt(art){return S.me.isDir||(art.authorId&&art.authorId===S.me.id&&art.status!=='pubblicato')}
+/* Ruoli per testata: S.roles[persona][testata] = lettore | redattore | direttore. Gli amministratori (profiles.role 'direttore') possono tutto. */
+function tRole(t,uid){uid=uid||S.me.id;const p=S.people[uid];if(p&&p.role==='direttore')return'amministratore';return(S.roles[uid]||{})[t]||null}
+function canWriteT(t){if(!S.me.canRead)return false;if(S.me.isAdmin)return true;if(!t||t==='tutte')return S.me.canWrite;const r=tRole(t);return r==='redattore'||r==='direttore'}
+function isDirT(t){if(S.me.isAdmin)return true;if(!t||t==='tutte')return S.me.isDir;return tRole(t)==='direttore'}
+const writableT=()=>TK.filter(canWriteT);
+function canSetStatus(art,k){const t=tOf(art);if(!canWriteT(t))return false;if(k==='pubblicato'||art.status==='pubblicato')return isDirT(t);return true}
+function canEditArt(art){const t=tOf(art);return canWriteT(t)&&(art.status!=='pubblicato'||isDirT(t))}
+function canDeleteArt(art){const t=tOf(art);return isDirT(t)||(canWriteT(t)&&art.authorId&&art.authorId===S.me.id&&art.status!=='pubblicato')}
 const battute=s=>(s||'').length;
 const parole=s=>((s||'').trim().match(/\S+/g)||[]).length;
 
@@ -221,7 +256,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
     S.me.canWrite&&S.loaded?h('button',{class:'btn primary',onclick:newArticle},'＋ Nuovo articolo'):null,
-    h('button',{class:'me-btn',onclick:profileModal,'aria-label':'Il mio profilo'},avatar(S.me.id),h('span',{class:'role'+(S.me.isDir?' dir':'')},S.me.isDir?'Direttore':(S.me.canWrite?'Redattore':'Lettore'))))}
+    h('button',{class:'me-btn',onclick:profileModal,'aria-label':'Il mio profilo'},avatar(S.me.id),h('span',{class:'role'+(isDirT(S.testata)?' dir':'')},myRoleLabel())))}
 function filtered(){const q=S.filter.q.trim().toLowerCase();
   return S.articles.filter(a=>inT(a)&&(!S.filter.mine||a.authorId===S.me.id||a.assigneeId===S.me.id)&&(!q||[a.title,a.kicker,a.summary,a.section,a.firma].join(' ').toLowerCase().includes(q)))}
 
@@ -275,9 +310,9 @@ function articleHead(a){const st=a.status||'bozza';
   return h('div',{id:'arthead'},
     h('button',{class:'back',onclick:()=>go('tavolo')},'← Tavolo di lavoro'),
     h('div',{class:'rail',role:'group','aria-label':'Stato dell\'articolo'},STATI.map(s=>h('button',{style:'--c:'+s.c,'aria-pressed':String(st===s.k),
-      disabled:(!canSetStatus(a,s.k)&&st!==s.k)||null,title:s.k==='pubblicato'&&!S.me.isDir?'Solo il direttore può pubblicare':null,
+      disabled:(!canSetStatus(a,s.k)&&st!==s.k)||null,title:s.k==='pubblicato'&&!isDirT(tOf(a))?'Solo il direttore della testata può pubblicare':null,
       onclick:()=>st!==s.k&&setStatus(a,s.k)},s.l))),
-    h('div',{class:'rail-note'},STATO[st].hint+(st==='pronto'&&!S.me.isDir?' · solo il direttore può pubblicare':'')+(a.publishedAt&&st==='pubblicato'?' · pubblicato '+fullDate(a.publishedAt):'')),
+    h('div',{class:'rail-note'},STATO[st].hint+(st==='pronto'&&!isDirT(tOf(a))?' · solo il direttore della testata può pubblicare':'')+(!canWriteT(tOf(a))?' · non fai parte della redazione di '+TESTATE[tOf(a)].name+': puoi solo leggere':'')+(a.publishedAt&&st==='pubblicato'?' · pubblicato '+fullDate(a.publishedAt):'')),
     lockedByOther?h('div',{class:'banner warn'},avatar(a.lockedBy),h('span',null,h('b',null,pname(a.lockedBy)),' sta modificando questo articolo. Puoi leggerlo e lasciare note intanto.')):null,
     h('div',{class:'actions'},
       S.editing?[h('button',{class:'btn primary',onclick:()=>{stopEdit();render()}},'✓ Fine modifica'),h('span',{class:'savestate',id:'savestate'},'Salvataggio automatico attivo')]
@@ -367,11 +402,12 @@ function galleryBox(){const d=S.draft;
 async function setStatus(a,k){if(!canSetStatus(a,k))return;const hist=[...(a.history||[]),{s:k,by:S.me.id,at:Date.now()}].slice(-40);
   const patch={status:k,history:hist,updatedAt:Date.now(),updatedBy:S.me.id};if(k==='pubblicato')patch.publishedAt=Date.now();
   try{await API.updateArt(a.id,patch);toast('Stato: '+STATO[k].l);loadArticles()}catch(e){toast(errMsg(e))}}
-async function newArticle(t){if(typeof t!=='string')t=S.testata;if(t==='tutte'){chooseTestata();return}const now=Date.now();
+async function newArticle(t){if(typeof t!=='string')t=S.testata;const w=writableT();if(!w.length){toast('Non hai il ruolo di redattore in nessuna testata.');return}
+  if(t==='tutte'||!w.includes(t)){if(w.length===1)t=w[0];else{chooseTestata();return}}const now=Date.now();
   try{const row=await q(sb.from('articles').insert({testata:t,author_id:S.me.id,updated_by:S.me.id,history:[{s:'bozza',by:S.me.id,at:now}]}).select().single());
     const a=artFromRow(row);if(!S.articles.find(x=>x.id===a.id))S.articles=[a,...S.articles];go('articolo',a.id);startEdit(a)}
   catch(e){toast(errMsg(e))}}
-function chooseTestata(){modal({title:'Per quale testata scrivi?',small:true,body:close=>({body:h('div',{class:'tpick'},TK.map(k=>h('button',{type:'button',onclick:()=>{close();newArticle(k)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})})}
+function chooseTestata(){modal({title:'Per quale testata scrivi?',small:true,body:close=>({body:h('div',{class:'tpick'},writableT().map(k=>h('button',{type:'button',onclick:()=>{close();newArticle(k)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})})}
 function confirmDelete(a){modal({title:'Eliminare l\'articolo?',small:true,body:close=>({
   body:h('p',{style:'margin:0'},'«'+(a.title||'Senza titolo')+'» verrà eliminato per tutta la redazione, insieme alle sue note. Le foto restano nell\'archivio.'),
   foot:[h('button',{class:'btn',onclick:close},'Annulla'),h('button',{class:'btn danger',onclick:async()=>{
@@ -385,13 +421,13 @@ const shortDate=t=>new Date(t).toLocaleString('it-IT',{weekday:'short',day:'nume
 function dueChip(a){if(!a.deadline||a.status==='pubblicato')return null;const ms=a.deadline-Date.now();
   const cls=ms<0?'due over':ms<864e5?'due soon':'due';
   return h('span',{class:cls,title:'Consegna: '+fullDate(a.deadline)},ms<0?'In ritardo · '+shortDate(a.deadline):'Consegna '+shortDate(a.deadline))}
-function canPlan(a){return S.me.canWrite&&(S.me.isDir||a.authorId===S.me.id)}
+function canPlan(a){const t=tOf(a);return canWriteT(t)&&(isDirT(t)||a.authorId===S.me.id)}
 async function patchArt(a,patch,msg){try{await API.updateArt(a.id,patch);msg&&toast(msg);loadArticles()}catch(e){toast(errMsg(e))}}
 function incaricoPanel(a){const can=canPlan(a);const ws=where(a.id);
   const dl=h('input',{type:'datetime-local',id:'f-deadline',value:toLocalInput(a.deadline),'aria-label':'Data e ora di consegna'});
   return h('section',{class:'panel'},h('h2',null,'Incarico'),h('div',{class:'kv'},
     articleAppts(a),
-    h('div',null,h('div',{class:'k'},'Testata'),h('div',{class:'v'},canEditArt(a)?h('div',{class:'tseg',role:'group','aria-label':'Testata'},TK.map(k=>h('button',{class:'t-'+k,'aria-pressed':String(tOf(a)===k),onclick:()=>{if(tOf(a)!==k)patchArt(a,{testata:k},'Spostato su '+TESTATE[k].name)}},TESTATE[k].short))):tchip(tOf(a)))),
+    h('div',null,h('div',{class:'k'},'Testata'),h('div',{class:'v'},canEditArt(a)?h('div',{class:'tseg',role:'group','aria-label':'Testata'},TK.map(k=>h('button',{class:'t-'+k,'aria-pressed':String(tOf(a)===k),disabled:(tOf(a)!==k&&!canWriteT(k))||null,onclick:()=>{if(tOf(a)!==k)patchArt(a,{testata:k},'Spostato su '+TESTATE[k].name)}},TESTATE[k].short))):tchip(tOf(a)))),
     h('div',null,h('div',{class:'k'},'Assegnato a'),h('div',{class:'v'},
       a.assigneeId?[avatar(a.assigneeId),h('b',null,pname(a.assigneeId))]:h('span',{class:'muted'},'Nessuno'),
       can?h('button',{class:'btn sm',onclick:()=>pickPerson(a)},a.assigneeId?'Cambia':'Assegna'):null)),
@@ -416,7 +452,7 @@ function notesPanel(a){const open=S.notes.filter(n=>!n.resolved).length;
   async function add(){const text=ta.value.trim();if(!text)return;
     try{await q(sb.from('notes').insert({article_id:a.id,text,quote:quote.value.trim(),kind:S.noteKind,by_id:S.me.id}));ta.value='';quote.value='';loadNotes()}catch(e){toast(errMsg(e))}}
   return h('section',{class:'panel'},h('h2',null,h('span',null,'Note e correzioni'),h('span',{class:'mono muted',style:'font-size:12px;font-weight:400'},open+' aperte')),
-    S.me.canWrite?h('div',{class:'composer'},kinds,S.noteKind!=='nota'?quote:null,ta,h('div',{class:'row'},
+    canWriteT(tOf(a))?h('div',{class:'composer'},kinds,S.noteKind!=='nota'?quote:null,ta,h('div',{class:'row'},
       h('label',{class:'filt'},h('input',{id:'hide-res',type:'checkbox',checked:S.hideResolved||null,onchange:e=>{S.hideResolved=e.target.checked;render()}}),'Nascondi risolte'),
       h('button',{class:'btn primary sm',onclick:add},'Aggiungi'))):null,
     h('div',{class:'notes'},list.length?list.slice().reverse().map(n=>noteItem(a,n)):h('p',{class:'muted',style:'margin:0;font-size:14px'},'Nessuna nota. Usa le correzioni per segnalare refusi e le note per dare indicazioni all\'autore.')))}
@@ -424,8 +460,8 @@ function noteItem(a,n){const k=KINDS[n.kind]||KINDS.nota;const mine=n.by===S.me.
   const act=p=>p.then(r=>{if(r.error)throw r.error;loadNotes()}).catch(e=>toast(errMsg(e)));
   return h('div',{class:'note'+(n.resolved?' resolved':''),style:'--k:'+k.c},
     h('div',{class:'h'},h('span',{class:'kind'},k.l),h('b',null,pname(n.by)),h('span',null,ago(n.at)),h('div',{class:'spacer'}),
-      S.me.canWrite?h('div',{class:'ops'},h('button',{onclick:()=>act(sb.from('notes').update({resolved:!n.resolved}).eq('id',n.id))},n.resolved?'Riapri':'Risolta'),
-        mine||S.me.isDir?h('button',{onclick:()=>act(sb.from('notes').delete().eq('id',n.id))},'Elimina'):null):null),
+      canWriteT(tOf(a))?h('div',{class:'ops'},h('button',{onclick:()=>act(sb.from('notes').update({resolved:!n.resolved}).eq('id',n.id))},n.resolved?'Riapri':'Risolta'),
+        mine||isDirT(tOf(a))?h('button',{onclick:()=>act(sb.from('notes').delete().eq('id',n.id))},'Elimina'):null):null),
     n.quote?h('div',{class:'q'+(n.kind==='correzione'?' del':'')},'«'+n.quote+'»'):null,
     h('div',{class:'txt'},n.kind==='correzione'&&n.quote?'→ '+n.text:n.text))}
 function historyPanel(a){const hs=(a.history||[]).slice().reverse().slice(0,12);
@@ -617,7 +653,7 @@ function renderAppunti(){const all=S.appunti.filter(apInView);
   const link=h('input',{id:'ap-link',class:'quote',type:'url',placeholder:'Link utile (facoltativo)',style:'width:100%;margin-top:8px'});
   const keep=()=>({t:ta.value,l:link.value});const restore=k=>{const t=document.getElementById('ap-text'),l=document.getElementById('ap-link');if(t){t.value=k.t;t.focus()}if(l)l.value=k.l};
   const kinds=h('div',{class:'kinds',role:'group','aria-label':'Tipo di appunto'},Object.entries(AP_KINDS).map(([k,v])=>h('button',{type:'button',style:'--k:'+v.c,'aria-pressed':String(S.apKind===k),onclick:()=>{const kk=keep();S.apKind=k;render();restore(kk)}},v.l)));
-  const tsel=h('div',{class:'tseg',role:'group','aria-label':'Per quale testata'},[[null,'Tutte'],['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel']].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String(S.apTestata===k),onclick:()=>{const kk=keep();S.apTestata=k;render();restore(kk)}},l)));
+  const tsel=h('div',{class:'tseg',role:'group','aria-label':'Per quale testata'},[[null,'Tutte'],['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel']].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String(S.apTestata===k),disabled:(k&&!canWriteT(k))||null,onclick:()=>{const kk=keep();S.apTestata=k;render();restore(kk)}},l)));
   async function add(){const text=ta.value.trim();if(!text){ta.focus();return}
     try{await q(sb.from('appunti').insert({kind:S.apKind,text,link:link.value.trim(),testata:S.apTestata,by_id:S.me.id}));ta.value='';link.value='';toast('Appunto aggiunto');loadAppunti()}catch(e){toast(errMsg(e))}}
   const composer=S.me.canWrite?h('section',{class:'panel',style:'margin-bottom:18px'},h('h2',null,'Nuovo appunto'),
@@ -627,7 +663,7 @@ function renderAppunti(){const all=S.appunti.filter(apInView);
     Object.entries(AP_KINDS).map(([k,v])=>h('button',{style:'--c:'+v.c,'aria-pressed':String(S.apFilter===k),onclick:()=>{S.apFilter=S.apFilter===k?'tutti':k;render()}},v.l,' ',h('i',null,all.filter(a=>a.kind===k).length))),
     h('label',{class:'chk',style:'margin-left:auto'},h('input',{id:'ap-hide',type:'checkbox',checked:S.apHideDone||null,onchange:e=>{S.apHideDone=e.target.checked;render()}}),'Nascondi i fatti'));
   return h('div',null,top,intro,composer,chips,list.length?h('div',{class:'aplist'},list.map(apCard)):h('p',{class:'muted'},all.length?'Nessun appunto con questi filtri.':'Ancora nessun appunto. Scrivi il primo qui sopra.'))}
-function apCanEdit(a){return S.me.canWrite&&(a.by===S.me.id||S.me.isDir)}
+function apCanEdit(a){return canWriteT(a.testata)&&(a.by===S.me.id||isDirT(a.testata))}
 function apEditForm(a){const d=S.apDraft;const k=AP_KINDS[d.kind]||AP_KINDS.promemoria;
   const save=async()=>{const text=d.text.trim();if(!text){toast('L\'appunto non può essere vuoto.');return}
     try{const r=await q(sb.from('appunti').update({kind:d.kind,text,link:d.link.trim(),testata:d.testata}).eq('id',a.id).select('id'));if(!r.length)throw{code:'perm'};
@@ -645,14 +681,14 @@ function apCard(a){if(S.apEditing===a.id&&S.apDraft)return apEditForm(a);const k
     h('div',{class:'h'},h('span',{class:'kind'},k.l),a.testata?tchip(a.testata):null,avatar(a.by),h('b',null,pname(a.by)),h('span',null,ago(a.at))),
     h('div',{class:'txt'},a.text),
     a.link?h('a',{class:'aplink',href:/^https?:\/\//i.test(a.link)?a.link:'https://'+a.link,target:'_blank',rel:'noopener'},a.link):null,
-    S.me.canWrite?h('div',{class:'ops'},
+    canWriteT(a.testata)?h('div',{class:'ops'},
       h('button',{class:'btn sm',onclick:()=>act(sb.from('appunti').update({done:!a.done}).eq('id',a.id))},a.done?'Riapri':'✓ Fatto'),
       art?h('button',{class:'btn sm',onclick:()=>go('articolo',art.id)},'Apri l\'articolo'):h('button',{class:'btn sm',onclick:()=>apToArticle(a)},'Trasforma in articolo'),
       apCanEdit(a)?h('button',{class:'btn sm',onclick:()=>{S.apEditing=a.id;S.apDraft={kind:a.kind,text:a.text,link:a.link||'',testata:a.testata||null};render();setTimeout(()=>{const t=document.getElementById('ap-edit-text');t&&t.focus()},0)}},'✎ Modifica'):null,
       h('div',{class:'spacer'}),
-      mine||S.me.isDir?h('button',{class:'btn sm ghost',onclick:()=>act(sb.from('appunti').delete().eq('id',a.id))},'Elimina'):null):null)}
-async function apToArticle(a){let t=a.testata||(S.testata!=='tutte'?S.testata:null);
-  if(!t){modal({title:'Per quale testata?',small:true,body:close=>({body:h('div',{class:'tpick'},TK.map(k=>h('button',{type:'button',onclick:()=>{close();a.testata=k;apToArticle(a)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})});return}
+      mine||isDirT(a.testata)?h('button',{class:'btn sm ghost',onclick:()=>act(sb.from('appunti').delete().eq('id',a.id))},'Elimina'):null):null)}
+async function apToArticle(a){let t=a.testata||(S.testata!=='tutte'?S.testata:null);if(t&&!canWriteT(t))t=null;if(!t&&writableT().length===1)t=writableT()[0];
+  if(!t){modal({title:'Per quale testata?',small:true,body:close=>({body:h('div',{class:'tpick'},writableT().map(k=>h('button',{type:'button',onclick:()=>{close();a.testata=k;apToArticle(a)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})});return}
   const first=a.text.split('\n')[0].trim();const now=Date.now();
   try{const row=await q(sb.from('articles').insert({testata:t,title:first.length<=120?first:first.slice(0,117)+'…',body:a.text+(a.link?'\n\nFonte: '+a.link:''),author_id:S.me.id,updated_by:S.me.id,history:[{s:'bozza',by:S.me.id,at:now}]}).select().single());
     await q(sb.from('appunti').update({article_id:row.id}).eq('id',a.id));

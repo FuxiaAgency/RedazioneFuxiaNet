@@ -32,12 +32,13 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 5. **Netlify → Add new site → Import from Git → GitHub** → scegli questo archivio. Lascia vuoto il comando di build, cartella di pubblicazione `.`.
 6. La **prima persona che si iscrive diventa direttore**. Poi, dalla scheda **Squadra**, approva gli altri e sceglie i ruoli.
 
-## Ruoli
+## Ruoli (per testata, dal 02/11/2026)
 
-- **In attesa**: appena iscritto, non vede nulla finché un direttore non lo approva.
-- **Lettore**: vede tutto, non scrive.
-- **Redattore**: scrive, corregge, lascia note, carica foto, gestisce scadenze dei propri pezzi.
-- **Direttore**: in più pubblica e ritira, modifica i pubblicati, prepara il menabò, gestisce la squadra. Deve sempre restarne almeno uno.
+- Ognuno ha un ruolo **per ciascuna testata** (tabella `ruoli_testata`): nessuno, lettore, redattore o direttore. Tutti gli approvati leggono tutte le testate.
+- **Lettore**: legge e basta. **Redattore**: in quella testata scrive, corregge, lascia note, carica foto e vocali. **Direttore**: in più pubblica e ritira e gestisce i ruoli di quella testata.
+- **Amministratore** (`profiles.role = 'direttore'`): tutto su tutte le testate; nomina altri amministratori e sospende gli accessi. Deve sempre restarne almeno uno.
+- `profiles.role`: `in_attesa` (non approvato), `lettore` (approvato), `direttore` (amministratore). Un direttore di testata può approvare chi è in attesa.
+- Funzioni SQL: `can_write(testata)`, `is_director_of(testata)`, `is_admin()`; nell'app `canWriteT()`, `isDirT()`, `writableT()`.
 
 ## Installare sul telefono
 

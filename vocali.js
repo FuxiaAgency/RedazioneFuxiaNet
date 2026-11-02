@@ -25,7 +25,7 @@ function vcProbe(file){return new Promise(res=>{try{const u=URL.createObjectURL(
 /* Carica uno o più file audio; poi avvia la trascrizione. */
 async function uploadVocali(files,opt={}){files=[...files];if(!files.length)return;
   if(!S.me.canWrite){toast('Con il ruolo di lettore non puoi caricare vocali.');return}
-  const testata=opt.testata||(S.testata!=='tutte'?S.testata:null);const made=[];
+  let testata=opt.testata||(S.testata!=='tutte'?S.testata:null);if(testata&&!canWriteT(testata))testata=opt.testata?testata:null;const made=[];
   for(const f of files){const ext=vcExt(f);
     if(!ext){toast('«'+f.name+'» non sembra un file audio.');continue}
     if(f.size>VC_MAX){toast('«'+f.name+'» è troppo grande: il limite è 25 MB (circa 2 ore di vocale WhatsApp).');continue}
@@ -75,8 +75,8 @@ async function vcAddToArticle(v,a){const text=v.transcript.trim();if(!text)retur
   if(!canEditArt(a)){toast('Non puoi modificare questo articolo.');return}
   if(a.lockedBy&&a.lockedBy!==S.me.id&&a.lockedUntil>Date.now()){toast(pname(a.lockedBy)+' sta modificando l\'articolo: riprova quando ha finito, oppure usa Copia.');return}
   await patchArt(a,{body:((a.body||'').trim()?a.body.replace(/\s+$/,'')+'\n\n':'')+text,updatedAt:Date.now(),updatedBy:S.me.id},'Trascrizione aggiunta in fondo al testo')}
-async function vcToArticle(v){let t=v.testata||(S.testata!=='tutte'?S.testata:null);
-  if(!t){modal({title:'Per quale testata?',small:true,body:close=>({body:h('div',{class:'tpick'},TK.map(k=>h('button',{type:'button',onclick:()=>{close();v.testata=k;vcToArticle(v)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})});return}
+async function vcToArticle(v){let t=v.testata||(S.testata!=='tutte'?S.testata:null);if(t&&!canWriteT(t))t=null;if(!t&&writableT().length===1)t=writableT()[0];
+  if(!t){modal({title:'Per quale testata?',small:true,body:close=>({body:h('div',{class:'tpick'},writableT().map(k=>h('button',{type:'button',onclick:()=>{close();v.testata=k;vcToArticle(v)}},h('img',{src:TESTATE[k].logo,alt:''}),TESTATE[k].name))),foot:[h('button',{class:'btn',onclick:close},'Annulla')]})});return}
   const c=v.contactId&&(S.contatti||[]).find(x=>x.id===v.contactId);const now=Date.now();
   const title=v.note||(c?'Intervista a '+c.name:'');
   try{const row=await q(sb.from('articles').insert({testata:t,title,section:'Interviste',body:v.transcript,author_id:S.me.id,updated_by:S.me.id,history:[{s:'bozza',by:S.me.id,at:now}]}).select().single());
@@ -93,13 +93,13 @@ function vcDetails(v){const d={note:v.note,contactId:v.contactId||'',articleId:v
       h('div',{class:'field wide'},h('label',{for:'vc-note'},'Di cosa si tratta'),h('input',{id:'vc-note',value:d.note,placeholder:'Es. Intervista a Mario Rossi, risposta 2',oninput:e=>d.note=e.target.value})),
       h('div',{class:'field wide'},h('label',{for:'vc-c'},'Chi parla (dalla Rubrica)'),sel('vc-c',d.contactId,[['','Nessuno'],...(S.contatti||[]).map(c=>[c.id,c.name+(c.role?' · '+c.role:'')])],x=>d.contactId=x)),
       h('div',{class:'field wide'},h('label',{for:'vc-a'},'Articolo'),sel('vc-a',d.articleId,[['','Nessuno'],...arts.map(a=>[a.id,'['+TESTATE[tOf(a)].short+'] '+(a.title||'Senza titolo')])],x=>{d.articleId=x;const a=S.articles.find(y=>y.id===x);if(a)d.testata=tOf(a)})),
-      h('div',{class:'field wide'},h('label',{for:'vc-t'},'Testata'),sel('vc-t',d.testata,[['','Nessuna'],...TK.map(k=>[k,TESTATE[k].name])],x=>d.testata=x))),
+      h('div',{class:'field wide'},h('label',{for:'vc-t'},'Testata'),sel('vc-t',d.testata,[['','Nessuna'],...TK.filter(k=>k===v.testata||canWriteT(k)).map(k=>[k,TESTATE[k].name])],x=>d.testata=x))),
       foot:[h('div',{class:'spacer'}),h('button',{class:'btn',onclick:close},'Annulla'),h('button',{class:'btn primary',onclick:()=>{close();
         vcUpdate(v,{note:d.note.trim(),contact_id:d.contactId||null,article_id:d.articleId||null,testata:d.testata||null},'Vocale aggiornato')}},'Salva')]}}})}
 
 function vcCard(v,inArticle){const st=VC_ST[v.status]||VC_ST.nuovo;const busy=v.status==='in_corso'||S.vcBusy.has(v.id);
   const a=v.articleId&&S.articles.find(x=>x.id===v.articleId);const c=v.contactId&&(S.contatti||[]).find(x=>x.id===v.contactId);
-  const canDel=S.me.isDir||v.by===S.me.id;const editing=S.vcEditing===v.id;let armed=false;
+  const canDel=isDirT(v.testata)||v.by===S.me.id;const cw=canWriteT(v.testata);const editing=S.vcEditing===v.id;let armed=false;
   const del=canDel?h('button',{class:'btn danger sm',onclick:()=>{if(!armed){armed=true;del.textContent='Conferma';return}vcDelete(v)}},'Elimina'):null;
   let tr;
   if(editing){const ta=h('textarea',{id:'vc-ed-'+v.id,rows:8,value:S.vcDraft,oninput:e=>S.vcDraft=e.target.value});
@@ -107,14 +107,14 @@ function vcCard(v,inArticle){const st=VC_ST[v.status]||VC_ST.nuovo;const busy=v.
       h('button',{class:'btn sm',onclick:()=>{S.vcEditing=null;render()}},'Annulla')))}
   else if(v.transcript)tr=h('div',{class:'vctr'},h('div',{class:'vctext'},v.transcript),h('div',{class:'ops'},
     h('button',{class:'btn sm',onclick:()=>vcCopy(v)},'Copia'),
-    S.me.canWrite?h('button',{class:'btn sm',onclick:()=>{S.vcEditing=v.id;S.vcDraft=v.transcript;render();setTimeout(()=>{const t=document.getElementById('vc-ed-'+v.id);t&&t.focus()},20)}},'Correggi'):null,
-    S.me.canWrite&&a?h('button',{class:'btn primary sm',onclick:()=>vcAddToArticle(v,a)},'Aggiungi al testo'):null,
+    cw?h('button',{class:'btn sm',onclick:()=>{S.vcEditing=v.id;S.vcDraft=v.transcript;render();setTimeout(()=>{const t=document.getElementById('vc-ed-'+v.id);t&&t.focus()},20)}},'Correggi'):null,
+    a&&canEditArt(a)?h('button',{class:'btn primary sm',onclick:()=>vcAddToArticle(v,a)},'Aggiungi al testo'):null,
     S.me.canWrite&&!a?h('button',{class:'btn primary sm',onclick:()=>vcToArticle(v)},'Crea articolo'):null,
-    S.me.canWrite&&!busy?h('button',{class:'btn ghost sm',onclick:()=>transcribe(v)},'Ritrascrivi'):null));
+    cw&&!busy?h('button',{class:'btn ghost sm',onclick:()=>transcribe(v)},'Ritrascrivi'):null));
   else tr=h('div',{class:'vctr'},
     busy?h('div',{class:'vcwait'},h('span',{class:'spin','aria-hidden':'true'}),'Sto trascrivendo… di solito bastano pochi secondi.')
       :v.error?h('div',{class:'vcerr'},v.error):h('div',{class:'muted',style:'font-size:13px'},'Non ancora trascritto.'),
-    S.me.canWrite&&!busy?h('div',{class:'ops'},h('button',{class:'btn primary sm',onclick:()=>transcribe(v)},v.error?'Riprova a trascrivere':'Trascrivi'),
+    cw&&!busy?h('div',{class:'ops'},h('button',{class:'btn primary sm',onclick:()=>transcribe(v)},v.error?'Riprova a trascrivere':'Trascrivi'),
       h('button',{class:'btn sm',onclick:()=>{S.vcEditing=v.id;S.vcDraft='';render()}},'Scrivi a mano')):null);
   return h('article',{class:'vocale',style:'--k:'+st.c},
     h('div',{class:'h'},v.testata&&TESTATE[v.testata]?tchip(v.testata):null,h('span',{class:'kind'},st.l),h('span',null,[vcDur(v.duration),vcSize(v.size)].filter(Boolean).join(' · '))),
@@ -124,7 +124,7 @@ function vcCard(v,inArticle){const st=VC_ST[v.status]||VC_ST.nuovo;const busy=v.
     (c||(a&&!inArticle))?h('div',{class:'vclinks'},c?h('span',null,'👤 ',h('b',null,c.name)):null,
       a&&!inArticle?h('button',{class:'linkish',onclick:()=>go('articolo',a.id)},'📰 '+(a.title||'Senza titolo')):null):null,
     vcPlayer(v),tr,
-    h('div',{class:'ops'},S.me.canWrite?h('button',{class:'btn ghost sm',onclick:()=>vcDetails(v)},'Dettagli'):null,
+    h('div',{class:'ops'},cw?h('button',{class:'btn ghost sm',onclick:()=>vcDetails(v)},'Dettagli'):null,
       h('button',{class:'btn ghost sm',onclick:()=>vcDownload(v)},'Scarica'),h('div',{class:'spacer'}),del))}
 
 function vcHelp(){return h('details',{class:'vchelp'},h('summary',null,'Come prendo i vocali da WhatsApp?'),
@@ -146,7 +146,7 @@ function renderVocali(){const qq=S.vcQ.trim().toLowerCase();
 
 /* Pannello nell'articolo */
 function vocaliPanel(a){const list=S.vocali.filter(v=>v.articleId===a.id);
-  return h('section',{class:'panel'},h('h2',null,'Vocali dell\'intervista',S.me.canWrite?h('button',{class:'btn sm',onclick:()=>pickAudio({articleId:a.id,testata:tOf(a)})},'＋ Carica'):null),
+  return h('section',{class:'panel'},h('h2',null,'Vocali dell\'intervista',canWriteT(tOf(a))?h('button',{class:'btn sm',onclick:()=>pickAudio({articleId:a.id,testata:tOf(a)})},'＋ Carica'):null),
     S.vcUploading?h('div',{class:'vcwait'},h('span',{class:'spin','aria-hidden':'true'}),'Caricamento…'):null,
     list.length?h('div',{class:'vcside'},list.map(v=>vcCard(v,true))):h('p',{class:'muted',style:'margin:0;font-size:13px'},'Carica qui i vocali WhatsApp dell\'intervistato: vengono trascritti parola per parola e con un tocco li aggiungi al testo.'))}
 

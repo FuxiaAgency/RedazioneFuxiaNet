@@ -620,3 +620,14 @@ main .tseg.agseg button[aria-pressed=true]{background:#fff;border-color:#fff;col
 .vchelp .muted{color:var(--s-muted)}
 .vcside{display:grid;gap:10px}
 .vcside .vocale{padding:12px}
+
+/* Squadra: ruoli per testata (02/11/2026) */
+.member{grid-template-columns:minmax(0,1fr);gap:10px}
+.member .mhead{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}
+.troles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trole{display:grid;gap:6px;padding:8px;border:1px solid var(--rule);border-radius:10px;background:var(--paper);min-width:0}
+.trole.on{border-color:var(--ink)}
+.trole .tchip{justify-self:start}
+.trole select{width:100%;min-width:0}
+.trole select:disabled{opacity:.7}
+@media (max-width:560px){.troles{grid-template-columns:minmax(0,1fr)}.trole{grid-template-columns:auto minmax(0,1fr);align-items:center}}

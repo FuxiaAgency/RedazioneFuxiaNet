@@ -120,11 +120,12 @@ function renderAgenda(){const mode=S.agMode||'settimana';const ref=S.agDate?from
 // Per gli impegni senza orario il promemoria si calcola rispetto alle 9:00 di quel giorno.
 function remLabel(v,l,allDay){if(!allDay||v==null)return l;if(v===0)return'Alle 9:00 del giorno';if(v<1440)return l.replace('prima','prima delle 9:00');return l.replace('prima','prima, alle 9:00')}
 function remindAt(start,allDay,remind){if(remind==null)return null;const base=allDay?new Date(start).setHours(9,0,0,0):start;return base-remind*60000}
-function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;const isNew=!a;
+function apptModal(a,occKey,preset){preset=preset||{};const edit=a?canWriteT(a.testata):S.me.canWrite;const isNew=!a;
   const st=a?new Date(a.start):null;
   const d={kind:a?a.kind:(preset.kind||'telefonata'),title:a?a.title:'',day:a?dkey(st):(preset.day||dkey(new Date())),time:a&&!a.allDay?hhmm(a.start):(preset.time||'15:00'),
     allDay:a?a.allDay:false,remind:a?a.remind:30,notes:a?a.notes:'',contactId:a?a.contactId:(preset.contactId||null),articleId:a?a.articleId:(preset.articleId||null),
     assignee:a?a.assignee:S.me.id,vis:a?a.vis:'tutti',status:a?a.status:'da_fare',repeat:a?a.repeat:'no',until:a?a.until||'':'',testata:a?a.testata:(preset.testata||(S.testata!=='tutte'?S.testata:null))};
+  if(isNew&&d.testata&&!canWriteT(d.testata))d.testata=writableT()[0]||null;
   modal({title:isNew?'Nuovo appuntamento':(edit?'Appuntamento':apTitle(a)),body:close=>{
     const wrap=h('div',{class:'apform'});
     const seg=(name,opts,val,set,dis)=>h('div',{class:'tseg agseg wrap',role:'group','aria-label':name},opts.map(([k,l])=>h('button',{type:'button','aria-pressed':String(val===k),disabled:(dis&&dis(k))||null,onclick:()=>{set(k);draw()}},l)));
@@ -135,7 +136,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
     let draw=function(){const ro=!edit;
       wrap.replaceChildren(
         h('div',{class:'field wide'},h('label',null,'Per quale testata'),h('div',{class:'tseg wrap',role:'group','aria-label':'Per quale testata'},
-          [[null,'Tutte'],...TK.map(t=>[t,TESTATE[t].short])].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String((d.testata||null)===k),disabled:ro||null,onclick:()=>{d.testata=k;draw()}},l)))),
+          [[null,'Tutte'],...TK.map(t=>[t,TESTATE[t].short])].map(([k,l])=>h('button',{type:'button',class:k?'t-'+k:'','aria-pressed':String((d.testata||null)===k),disabled:(ro||(k&&k!==a?.testata&&!canWriteT(k)))||null,onclick:()=>{d.testata=k;if(d.vis==='direzione'&&!isDirT(k))d.vis='tutti';draw()}},l)))),
         h('div',{class:'field wide'},h('label',null,'Tipo'),seg('Tipo',Object.entries(AK).filter(([k,v])=>!v.auto).map(([k,v])=>[k,v.l]),d.kind,v=>{d.kind=v;if(v==='scadenza'&&isNew)d.allDay=true})),
         field('ap-title','Titolo (facoltativo)',h('input',{id:'ap-title',value:d.title,placeholder:'Es. Intervista telefonica con l\'artista',oninput:e=>{d.title=e.target.value},readonly:ro||null}),true),
         field('ap-day',d.kind==='scadenza'?'Entro il giorno':'Giorno',h('input',{id:'ap-day',type:'date',value:d.day,onchange:e=>{d.day=e.target.value},readonly:ro||null})),
@@ -150,7 +151,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
           arts.map(x=>h('option',{value:x.id,selected:x.id===d.articleId||null},(x.title||'Senza titolo')+' · '+TESTATE[tOf(x)].short)))),
         field('ap-who','Assegnato a',h('select',{id:'ap-who',disabled:ro||null,onchange:e=>{d.assignee=e.target.value||null}},h('option',{value:''},'— Nessuno —'),
           team.map(p=>h('option',{value:p.id,selected:p.id===d.assignee||null},p.name+(p.id===S.me.id?' (tu)':''))))),
-        h('div',{class:'field wide'},h('label',null,'Chi lo vede'),seg('Chi lo vede',Object.entries(AVIS),d.vis,v=>{d.vis=v},k=>ro||(k==='direzione'&&!S.me.isDir))),
+        h('div',{class:'field wide'},h('label',null,'Chi lo vede'),seg('Chi lo vede',Object.entries(AVIS),d.vis,v=>{d.vis=v},k=>ro||(k==='direzione'&&!isDirT(d.testata)))),
         field('ap-rep','Ripetizione',h('select',{id:'ap-rep',disabled:ro||null,onchange:e=>{d.repeat=e.target.value;draw()}},Object.entries(AREP).map(([k,l])=>h('option',{value:k,selected:d.repeat===k||null},l)))),
         d.repeat!=='no'?field('ap-until','Fino al (facoltativo)',h('input',{id:'ap-until',type:'date',value:d.until,onchange:e=>{d.until=e.target.value},readonly:ro||null})):h('div'),
         isNew?null:h('div',{class:'field wide'},h('label',null,'Stato'),seg('Stato',Object.entries(AST),d.status,v=>{d.status=v},()=>ro),
@@ -173,7 +174,7 @@ function apptModal(a,occKey,preset){preset=preset||{};const edit=S.me.canWrite;c
     const doneOnce=a&&a.repeat!=='no'&&occKey?h('button',{class:'btn',onclick:async()=>{const set=new Set(a.doneDates);set.has(occKey)?set.delete(occKey):set.add(occKey);
       try{await q(sb.from('appuntamenti').update({done_dates:[...set]}).eq('id',a.id));close();toast(set.has(occKey)?'Segnato come fatto per il '+fromKey(occKey).toLocaleDateString('it-IT'):'Riaperto');loadAppt()}catch(e){toast(errMsg(e))}}},
       a.doneDates.includes(occKey)?'Riapri questa volta':'✓ Fatto questa volta'):null;
-    const canDel=a&&(S.me.isDir||a.by===S.me.id);let armed=false;
+    const canDel=a&&(isDirT(a.testata)||a.by===S.me.id);let armed=false;
     const del=canDel?h('button',{class:'btn danger',onclick:async()=>{if(!armed){armed=true;del.textContent='Conferma eliminazione';return}
       try{const r=await q(sb.from('appuntamenti').delete().eq('id',a.id).select('id'));if(!r.length)throw{code:'perm'};close();toast('Appuntamento eliminato');loadAppt()}catch(e){toast(errMsg(e))}}},'Elimina'):null;
     const ics=a?h('button',{class:'btn',onclick:()=>downloadIcs(a)},'Aggiungi al calendario del telefono'):null;
