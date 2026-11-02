@@ -125,30 +125,28 @@ async function setAccess(p,v){try{await q(sb.from('profiles').update({role:v}).e
     toast(p.name+': '+(v==='direttore'?'ora è amministratore':v==='in_attesa'?'accesso sospeso':'accesso normale'))}catch(err){toast(errMsg(err))}loadPeople()}
 function memberCard(p){const admin=p.role==='direttore',pend=p.role==='in_attesa';const rs=S.roles[p.id]||{};
   const rows=admin?h('p',{class:'muted',style:'margin:0;font-size:13px'},'Amministratore: è direttore di tutte e tre le testate e gestisce tutta la squadra.')
-    :h('div',{class:'troles'},TK.map(t=>{const can=isDirT(t);const cur=rs[t]||'';
-      const sel=h('select',{id:'tr-'+p.id+'-'+t,'aria-label':'Ruolo di '+p.name+' in '+TESTATE[t].name,disabled:(!can||!S.rolesReady)||null,onchange:e=>setTRole(p,t,e.target.value)},
+    :h('div',{class:'troles'},TK.map(t=>{const cur=rs[t]||'';
+      const sel=h('select',{id:'tr-'+p.id+'-'+t,'aria-label':'Ruolo di '+p.name+' in '+TESTATE[t].name,disabled:(!S.me.isAdmin||!S.rolesReady)||null,onchange:e=>setTRole(p,t,e.target.value)},
         TRUOLI.map(([k,l])=>h('option',{value:k,selected:cur===k||null},l)));
       return h('label',{class:'trole t-'+t+(cur?' on':'')},h('span',{class:'tchip t-'+t},TESTATE[t].short),sel)}));
   let access=null;
   if(S.me.isAdmin&&p.id!==S.me.id){
     access=h('select',{id:'acc-'+p.id,'aria-label':'Accesso di '+p.name,onchange:e=>setAccess(p,e.target.value)},
       [['in_attesa','In attesa / sospeso'],['lettore','Accesso normale'],['direttore','Amministratore']].map(([k,l])=>h('option',{value:k,selected:(p.role===k||(k==='lettore'&&p.role==='redattore'))||null},l)))}
-  else if(pend)access=h('button',{class:'btn sm primary',onclick:()=>setAccess(p,'lettore')},'Approva');
   return h('div',{class:'member'+(pend?' pending':'')},
     h('div',{class:'mhead'},avatar(p.id),h('div',{class:'who2'},h('b',null,p.name+(p.id===S.me.id?' (tu)':'')),h('span',null,pend?'In attesa di approvazione · '+(p.email||''):(p.email||''))),access),
-    pend?h('p',{class:'muted',style:'margin:0;font-size:13px'},'Scegli il ruolo in una testata per approvarlo, oppure premi Approva: vedrà tutto ma non scriverà finché non gli dai un ruolo.'):null,
+    pend?h('p',{class:'muted',style:'margin:0;font-size:13px'},'Scegli il ruolo in una testata per approvarlo, oppure metti "Accesso normale": vedrà tutto ma non scriverà finché non gli dai un ruolo.'):null,
     rows)}
-function renderSquadra(){if(!S.me.isDir)return h('p',{class:'muted'},'Questa sezione è riservata ai direttori.');
+function renderSquadra(){if(!S.me.isAdmin)return h('p',{class:'muted'},'Questa sezione è riservata all\'amministrazione.');
   const team=[...S.team].sort((a,b)=>(a.role==='in_attesa'?0:1)-(b.role==='in_attesa'?0:1)||(a.role==='direttore'?0:1)-(b.role==='direttore'?0:1)||a.name.localeCompare(b.name));
   const link=location.origin+location.pathname;
-  const mineT=TK.filter(isDirT);
   return h('div',null,h('div',{class:'toolbar'},h('h1',null,'Squadra'),h('span',{class:'muted'},team.length+' persone')),
     h('div',{class:'agenda'},h('div',{class:'eyebrow'},'Come invitare un collega'),
       h('p',{style:'margin:8px 0 10px'},'Mandagli il link della redazione. Si iscrive con la sua email, compare qui come "In attesa" e tu scegli il suo ruolo in ciascuna testata.'),
       h('div',{class:'install'},h('code',{class:'mono',style:'overflow-wrap:anywhere'},link),h('button',{class:'btn sm',onclick:()=>{navigator.clipboard&&navigator.clipboard.writeText(link).then(()=>toast('Link copiato'),()=>toast('Copia il link selezionandolo'))}},'Copia link'))),
-    !S.rolesReady?h('div',{class:'banner warn'},'I ruoli per testata si stanno attivando: per ora ognuno ha lo stesso ruolo in tutte le testate.'):S.me.isAdmin?null:h('div',{class:'banner'},'Puoi cambiare i ruoli di: ',mineT.map(t=>tchip(t))),
+    !S.rolesReady?h('div',{class:'banner warn'},'I ruoli per testata si stanno attivando: per ora ognuno ha lo stesso ruolo in tutte le testate.'):null,
     h('div',{class:'team'},team.map(memberCard)),
-    h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Tutti vedono tutte le testate. Lettore: legge e basta. Redattore: in quella testata scrive, corregge, lascia note, carica foto e vocali. Direttore: in più pubblica e gestisce i ruoli di quella testata. Amministratore: tutto, su tutte le testate.'))}
+    h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Tutti vedono tutte le testate. Lettore: legge e basta. Redattore: in quella testata scrive, corregge, lascia note, carica foto e vocali. Direttore: in più pubblica e ritira gli articoli di quella testata. Amministratore: tutto, su tutte le testate, ed è l\'unico che gestisce la squadra.'))}
 /* ---------- profilo e installazione ---------- */
 function profileModal(){modal({title:'Il mio profilo',small:true,body:close=>{
   const nm=h('input',{id:'my-name',class:'search',style:'width:100%',value:S.me.name||'',maxlength:'80'});
@@ -255,7 +253,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
     h('div',{class:'brand'},h('small',null,'FuxiaNet 1 · Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
   const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
   m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('vocali','Vocali'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
-      S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
+      S.me.isAdmin?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
     S.me.canWrite&&S.loaded?h('button',{class:'btn primary',onclick:newArticle},'＋ Nuovo articolo'):null,
     h('button',{class:'me-btn',onclick:profileModal,'aria-label':'Il mio profilo'},avatar(S.me.id),h('span',{class:'role'+(isDirT(S.testata)?' dir':'')},myRoleLabel())))}

@@ -35,9 +35,9 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 ## Ruoli (per testata, dal 02/11/2026)
 
 - Ognuno ha un ruolo **per ciascuna testata** (tabella `ruoli_testata`): nessuno, lettore, redattore o direttore. Tutti gli approvati leggono tutte le testate.
-- **Lettore**: legge e basta. **Redattore**: in quella testata scrive, corregge, lascia note, carica foto e vocali. **Direttore**: in più pubblica e ritira e gestisce i ruoli di quella testata.
-- **Amministratore** (`profiles.role = 'direttore'`): tutto su tutte le testate; nomina altri amministratori e sospende gli accessi. Deve sempre restarne almeno uno.
-- `profiles.role`: `in_attesa` (non approvato), `lettore` (approvato), `direttore` (amministratore). Un direttore di testata può approvare chi è in attesa.
+- **Lettore**: legge e basta. **Redattore**: in quella testata scrive, corregge, lascia note, carica foto e vocali. **Direttore**: in più pubblica e ritira gli articoli di quella testata.
+- **Amministratore** (`profiles.role = 'direttore'`): tutto su tutte le testate; è l'unico che gestisce la Squadra (approva, assegna i ruoli nelle testate, nomina amministratori, sospende). Deve sempre restarne almeno uno.
+- `profiles.role`: `in_attesa` (non approvato), `lettore` (approvato), `direttore` (amministratore).
 - Funzioni SQL: `can_write(testata)`, `is_director_of(testata)`, `is_admin()`; nell'app `canWriteT()`, `isDirT()`, `writableT()`.
 
 ## Installare sul telefono

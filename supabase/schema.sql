@@ -570,8 +570,7 @@ drop policy if exists menabo_write on public.menabo;
 create policy menabo_write on public.menabo for all to authenticated
   using (public.is_director_of(testata)) with check (public.is_director_of(testata));
 
--- Squadra: ogni direttore approva i nuovi iscritti e gestisce i ruoli della sua testata;
--- solo un amministratore nomina altri amministratori o toglie l'accesso.
+-- Squadra: solo gli amministratori approvano i nuovi iscritti e assegnano i ruoli nelle testate.
 create or replace function public.guard_profile() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -581,8 +580,6 @@ begin
          and (select count(*) from public.profiles where role = 'direttore') <= 1 then
         raise exception 'Serve almeno un amministratore: nominane un altro prima';
       end if;
-    elsif public.is_director() and old.role = 'in_attesa' and new.role = 'lettore' then
-      null;
     else
       raise exception 'Solo un amministratore può cambiare questo accesso';
     end if;
@@ -600,12 +597,12 @@ drop policy if exists ruoli_update on public.ruoli_testata;
 drop policy if exists ruoli_delete on public.ruoli_testata;
 create policy ruoli_read   on public.ruoli_testata for select to authenticated using (user_id = auth.uid() or public.is_reader());
 create policy ruoli_insert on public.ruoli_testata for insert to authenticated
-  with check (public.is_director_of(testata)
+  with check (public.is_admin()
               and exists (select 1 from public.profiles p where p.id = user_id and p.role <> 'in_attesa'));
 create policy ruoli_update on public.ruoli_testata for update to authenticated
-  using (public.is_director_of(testata)) with check (public.is_director_of(testata));
+  using (public.is_admin()) with check (public.is_admin());
 create policy ruoli_delete on public.ruoli_testata for delete to authenticated
-  using (public.is_director_of(testata));
+  using (public.is_admin());
 do $$ begin
   if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'ruoli_testata') then
     alter publication supabase_realtime add table public.ruoli_testata;
@@ -620,6 +617,10 @@ grant execute on function public.t_role(text) to authenticated;
 grant execute on function public.art_testata(uuid) to authenticated;
 grant execute on function public.is_member() to authenticated;
 grant execute on function public.is_director() to authenticated;
+
+-- Solo gli amministratori modificano i profili degli altri.
+drop policy if exists profiles_update on public.profiles;
+create policy profiles_update on public.profiles for update to authenticated using (id = auth.uid() or public.is_admin());
 
 -- Passaggio iniziale: ognuno tiene il ruolo che aveva, uguale su tutte e tre le testate.
 insert into public.ruoli_testata (user_id, testata, role)
