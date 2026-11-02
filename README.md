@@ -15,6 +15,8 @@ La redazione online delle due testate: articoli con stati (Bozza, In revisione, 
 | `index.html` | La pagina dell'app |
 | `app.js` | Tutta la logica |
 | `agenda.js` | Agenda (appuntamenti, calendario, file .ics) e pagina Oggi |
+| `vocali.js` | Vocali WhatsApp delle interviste e trascrizioni |
+| `supabase/functions/trascrivi/` | Funzione che trascrive i vocali con OpenAI |
 | `style.css` | Aspetto e colori (fucsia per Fuxia, blu e oro per RNV, rosso-verde-oro per 1Channel) |
 | `config.js` | Indirizzo e chiave pubblica di Supabase |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installazione sul telefono |
@@ -64,6 +66,13 @@ L'icona attuale è "FuxiaNet 1" (Fuxia bianco, Net oro, 1 rosso in un riquadro b
 - "Aggiungi al calendario del telefono" scarica un file .ics con allarme: rete di sicurezza in attesa delle notifiche push.
 - Le consegne degli articoli (campo `deadline`) compaiono da sole nelle viste dell'Agenda come tipo "Consegna articolo": sono calcolate al volo da `articleDeadlines()` in `agenda.js`, non salvate in `appuntamenti`. Toccandole si apre l'articolo.
 - Pagina iniziale: `#oggi`.
+
+## Vocali e trascrizioni
+
+- Pagina **Vocali** (`#vocali`) e pannello "Vocali dell'intervista" in ogni articolo. Tabella `vocali` e contenitore **privato** `audio` (limite 25 MB): i file si aprono con link firmati validi un'ora.
+- Dopo il caricamento parte da sola la trascrizione: la funzione Supabase `trascrivi` scarica il file con i permessi di chi la chiama e lo manda a OpenAI (`gpt-4o-transcribe`, ripiego `whisper-1`). Segreto obbligatorio `OPENAI_API_KEY`; facoltativo `OPENAI_TRANSCRIBE_MODEL`.
+- Le estensioni `.opus` di WhatsApp vengono salvate come `.ogg`, accettato da OpenAI. Se un telefono non riesce a riprodurre il formato, il lettore lo dice e resta la possibilità di scaricarlo.
+- Android: `share_target` nel manifest; `sw.js` raccoglie i file condivisi nella cache `condivisi` e l'app li carica all'apertura (`takeShared()`). iPhone: WhatsApp → Condividi → Salva su File, poi "Carica vocali".
 
 ## Menabò
 

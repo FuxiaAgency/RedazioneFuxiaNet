@@ -380,3 +380,52 @@ revoke execute on function public.handle_new_user() from public, anon, authentic
 grant execute on function public.my_role() to authenticated;
 grant execute on function public.acquire_lock(uuid, int) to authenticated;
 grant execute on function public.release_lock(uuid) to authenticated;
+
+-- ---------- Vocali e trascrizioni (aggiunto il 26/10/2026) ----------
+-- I file audio stanno nel contenitore privato 'audio' (le interviste non devono essere pubbliche):
+-- l'app li apre con link temporanei firmati. La trascrizione la fa la funzione 'trascrivi' (OpenAI).
+create table if not exists public.vocali (
+  id          uuid primary key default gen_random_uuid(),
+  path        text not null,
+  name        text not null default '',
+  mime        text not null default '',
+  size        integer not null default 0,
+  duration    real,
+  testata     text check (testata in ('fuxia','rnv','ch1')),
+  article_id  uuid references public.articles(id) on delete set null,
+  contact_id  uuid references public.contatti(id) on delete set null,
+  note        text not null default '',
+  transcript  text not null default '',
+  status      text not null default 'nuovo' check (status in ('nuovo','in_corso','fatto','errore')),
+  error       text not null default '',
+  by_id       uuid references public.profiles(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists vocali_article_idx on public.vocali(article_id);
+alter table public.vocali enable row level security;
+grant select, insert, update, delete on public.vocali to authenticated;
+drop policy if exists vocali_read   on public.vocali;
+drop policy if exists vocali_insert on public.vocali;
+drop policy if exists vocali_update on public.vocali;
+drop policy if exists vocali_delete on public.vocali;
+create policy vocali_read   on public.vocali for select to authenticated using (public.is_reader());
+create policy vocali_insert on public.vocali for insert to authenticated with check (public.is_member() and by_id = auth.uid());
+create policy vocali_update on public.vocali for update to authenticated using (public.is_member());
+create policy vocali_delete on public.vocali for delete to authenticated using (public.is_director() or by_id = auth.uid());
+do $$ begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'vocali') then
+    alter publication supabase_realtime add table public.vocali;
+  end if;
+end $$;
+
+insert into storage.buckets (id, name, public, file_size_limit) values ('audio', 'audio', false, 26214400)
+  on conflict (id) do update set public = false, file_size_limit = 26214400;
+drop policy if exists audio_read   on storage.objects;
+drop policy if exists audio_insert on storage.objects;
+drop policy if exists audio_delete on storage.objects;
+create policy audio_read   on storage.objects for select to authenticated
+  using (bucket_id = 'audio' and public.is_reader());
+create policy audio_insert on storage.objects for insert to authenticated
+  with check (bucket_id = 'audio' and public.is_member());
+create policy audio_delete on storage.objects for delete to authenticated
+  using (bucket_id = 'audio' and public.is_member());

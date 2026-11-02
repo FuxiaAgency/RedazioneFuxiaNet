@@ -21,7 +21,7 @@ const tchip=t=>h('span',{class:'tchip t-'+t},TESTATE[t].short);
 function setTestata(t){S.testata=t;try{localStorage.setItem('redazione.testata',t)}catch(e){}document.documentElement.dataset.testata=t;render()}
 
 const S={me:{id:null,name:'',role:null,isDir:false,canWrite:false},team:[],
-  articles:[],photos:[],appunti:[],contatti:[],appt:[],agMode:'settimana',agDate:null,agMine:false,rbQ:'',apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
+  articles:[],photos:[],appunti:[],vocali:[],vcQ:'',vcEditing:null,vcDraft:'',vcUploading:0,vcBusy:new Set(),contatti:[],appt:[],agMode:'settimana',agDate:null,agMine:false,rbQ:'',apFilter:'tutti',apHideDone:true,apKind:'promemoria',apTestata:null,menabi:{fuxia:null,rnv:null},testata:'fuxia',people:{},loaded:false,started:false,
   view:'tavolo',current:null,notes:[],editing:false,draft:null,
   filter:{q:'',mine:false},noteKind:'nota',hideResolved:false,
   lockTimer:null,saveTimer:null,saving:false,savePending:false,authMode:'login',installEvt:null};
@@ -53,11 +53,11 @@ async function loadPeople(){const d=await q(sb.from('profiles').select('*').orde
   if(me){S.me.name=me.name;S.me.role=me.role;S.me.isDir=me.role==='direttore';S.me.canWrite=me.role==='redattore'||me.role==='direttore';S.me.canRead=me.role!=='in_attesa'}
   if(was!==S.me.role){if(S.me.role==='in_attesa'){showWaiting();return}if(!S.started||was==='in_attesa'){enterApp();return}}
   render()}
-function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes(),loadAppunti(),loadContatti(),loadAppt()]).catch(e=>toast(errMsg(e)))}
+function reloadAll(){return Promise.all([loadArticles(),loadPhotos(),loadMenabo(),loadPeople(),loadNotes(),loadAppunti(),loadContatti(),loadAppt(),loadVocali()]).catch(e=>toast(errMsg(e)))}
 let channel=null;
 function subscribe(){if(channel)return;const ra=later(loadArticles),rp=later(loadPhotos),rpe=later(loadPeople),rm=later(loadMenabo),rn=later(loadNotes,150);
   const on=(c,t,f)=>c.on('postgres_changes',{event:'*',schema:'public',table:t},f);
-  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));on(channel,'contatti',later(loadContatti));on(channel,'appuntamenti',later(loadAppt));channel.subscribe()}
+  channel=sb.channel('redazione');on(on(on(on(on(channel,'articles',ra),'photos',rp),'profiles',rpe),'menabo',rm),'notes',rn);on(channel,'appunti',later(loadAppunti));on(channel,'contatti',later(loadContatti));on(channel,'appuntamenti',later(loadAppt));on(channel,'vocali',later(loadVocali,400));channel.subscribe()}
 /* ---------- accesso ---------- */
 function shell(){document.documentElement.dataset.testata=S.testata}
 async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.id;
@@ -65,7 +65,7 @@ async function start(user){if(S.me.id===user.id&&S.started)return;S.me.id=user.i
   if(!S.people[user.id]){showAuth('Profilo non trovato. Se il database è appena stato creato, esci e iscriviti di nuovo.');return}
   subscribe()}
 async function enterApp(){if(S.authMode==='newpass')return;S.started=true;shell();render();
-  try{await Promise.all([loadArticles(),loadPhotos(),loadMenabo()]);loadAppunti().catch(()=>{});loadContatti().catch(()=>{});loadAppt().catch(()=>{});if(S.view==='articolo')loadNotes()}catch(e){toast(errMsg(e))}}
+  try{await Promise.all([loadArticles(),loadPhotos(),loadMenabo()]);loadAppunti().catch(()=>{});loadContatti().catch(()=>{});loadAppt().catch(()=>{});loadVocali().catch(()=>{});takeShared();if(S.view==='articolo')loadNotes()}catch(e){toast(errMsg(e))}}
 function authFrame(...kids){S.started=false;document.documentElement.dataset.testata='tutte';document.querySelector('.mast').hidden=true;
   document.getElementById('main').replaceChildren(h('div',{class:'auth'},h('div',{class:'auth-box'},
     h('div',{class:'auth-logos'},TK.map(k=>h('img',{src:TESTATE[k].logo,alt:TESTATE[k].name}))),h('div',{class:'auth-card'},kids))))}
@@ -182,7 +182,7 @@ function renderBody(text){const out=h('div',{class:'prose'});
 /* ---------- navigazione ---------- */
 function hashOf(view,id){return'#'+(view==='articolo'?'a-'+id:view)}
 function parseHash(){const s=(location.hash||'').slice(1);if(s.startsWith('a-'))return{view:'articolo',id:s.slice(2)};
-  return{view:['edizione','foto','tavolo','riepilogo','squadra','appunti','rubrica','agenda','oggi'].includes(s)?s:'oggi',id:null}}
+  return{view:['edizione','foto','tavolo','riepilogo','squadra','appunti','rubrica','agenda','oggi','vocali'].includes(s)?s:'oggi',id:null}}
 function go(view,id,fromPop){
   if(S.editing&&!(view==='articolo'&&id===S.current))stopEdit();
   const changed=view!=='articolo'||id!==S.current;
@@ -202,6 +202,8 @@ function render(){if(!S.started)return;renderMast();
   if(S.view==='squadra')return main.replaceChildren(renderSquadra());
   if(S.view==='oggi')return main.replaceChildren(renderOggi());
   if(S.view==='agenda')return main.replaceChildren(renderAgenda());
+  if(S.view==='vocali'){const ae=document.activeElement,fid=ae&&ae.id,ss=ae&&ae.selectionStart,se=ae&&ae.selectionEnd;
+    main.replaceChildren(renderVocali());if(fid){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(ss,se)}catch(e){}}}return}
   if(S.view==='rubrica'){const ae=document.activeElement,fid=ae&&ae.id,ss=ae&&ae.selectionStart;
     main.replaceChildren(renderRubrica());if(fid){const el=document.getElementById(fid);if(el){el.focus();try{el.setSelectionRange(ss,ss)}catch(e){}}}return}
   if(S.view==='appunti'){const ae=document.activeElement,fid=ae&&ae.id,ss=ae&&ae.selectionStart,se=ae&&ae.selectionEnd;
@@ -215,7 +217,7 @@ function renderMast(){const m=document.getElementById('mast');document.querySele
   const brand=h('div',{class:'brand-row'},T==='tutte'?h('div',{class:'logos'},TK.map(k=>h('img',{class:'logo-m',src:TESTATE[k].logo,alt:TESTATE[k].name}))):h('img',{class:'logo-m',src:TESTATE[T].logo,alt:TESTATE[T].name}),
     h('div',{class:'brand'},h('small',null,'FuxiaNet 1 · Redazione'),h('b',null,T==='tutte'?'Tutte le testate':TESTATE[T].name)));
   const sw=h('div',{class:'tsw',role:'group','aria-label':'Testata'},[['fuxia','Fuxia'],['rnv','RNV'],['ch1','1Channel'],['tutte','Tutte']].map(([k,l])=>h('button',{class:'t-'+k,'aria-pressed':String(T===k),onclick:()=>setTestata(k)},l)));
-  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
+  m.replaceChildren(brand,sw,h('nav',{class:'nav'},tab('oggi','Oggi'),tab('tavolo','Tavolo di lavoro'),tab('agenda','Agenda'),tab('appunti','Appunti'),tab('vocali','Vocali'),tab('rubrica','Rubrica'),tab('riepilogo','Riepilogo'),tab('edizione','Edizione'),tab('foto','Archivio foto'),
       S.me.isDir?tab('squadra','Squadra',pending?h('span',{class:'badge'},pending):null):null),
     h('div',{class:'spacer'}),
     S.me.canWrite&&S.loaded?h('button',{class:'btn primary',onclick:newArticle},'＋ Nuovo articolo'):null,
@@ -265,7 +267,7 @@ function renderArticle(main){const a=S.articles.find(x=>x.id===S.current);
   else{const hd=sheet.querySelector('#arthead');hd&&hd.replaceWith(articleHead(a))}
   const keep={};const act=document.activeElement;
   for(const k of['note-text','note-quote','f-deadline']){const el=document.getElementById(k);if(el)keep[k]={v:el.value,f:act===el,s:el.selectionStart,e:el.selectionEnd}}
-  grid.querySelector('#side').replaceChildren(incaricoPanel(a),notesPanel(a),historyPanel(a));
+  grid.querySelector('#side').replaceChildren(incaricoPanel(a),vocaliPanel(a),notesPanel(a),historyPanel(a));
   for(const[k,o]of Object.entries(keep)){const el=document.getElementById(k);if(!el)continue;el.value=o.v;if(o.f){el.focus();try{el.setSelectionRange(o.s,o.e)}catch(e){}}}}
 
 function articleHead(a){const st=a.status||'bozza';
