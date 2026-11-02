@@ -47,8 +47,10 @@ async function loadMenabo(){const d=await q(sb.from('menabo').select('*'));S.men
 async function loadNotes(){if(S.view!=='articolo'||!S.current)return;const id=S.current;
   const d=await q(sb.from('notes').select('*').eq('article_id',id).order('created_at'));if(S.current!==id)return;
   S.notes=d.map(r=>({id:r.id,kind:r.kind,text:r.text,quote:r.quote,by:r.by_id,at:ms(r.created_at),resolved:r.resolved}));render()}
-async function loadPeople(){const [d,rt]=await Promise.all([q(sb.from('profiles').select('*').order('created_at')),q(sb.from('ruoli_testata').select('*'))]);S.team=d;
-  S.roles={};for(const r of rt)(S.roles[r.user_id]=S.roles[r.user_id]||{})[r.testata]=r.role;
+async function loadPeople(){const [d,rt]=await Promise.all([q(sb.from('profiles').select('*').order('created_at')),q(sb.from('ruoli_testata').select('*')).catch(()=>null)]);S.team=d;
+  // Se il database non ha ancora i ruoli per testata, ognuno vale con il suo ruolo generale su tutte le testate.
+  S.rolesReady=!!rt;S.roles={};if(rt)for(const r of rt)(S.roles[r.user_id]=S.roles[r.user_id]||{})[r.testata]=r.role;
+  else for(const p of d)if(p.role!=='in_attesa')S.roles[p.id]=Object.fromEntries(TK.map(t=>[t,p.role]));
   S.people=Object.fromEntries(d.map(p=>[p.id,{id:p.id,name:p.name,email:p.email,role:p.role,color:colorFor(p.id)}]));
   const me=S.people[S.me.id];const was=S.me.role;
   if(me){S.me.name=me.name;S.me.role=me.role;S.me.canRead=me.role!=='in_attesa';S.me.isAdmin=me.role==='direttore';
@@ -124,7 +126,7 @@ async function setAccess(p,v){try{await q(sb.from('profiles').update({role:v}).e
 function memberCard(p){const admin=p.role==='direttore',pend=p.role==='in_attesa';const rs=S.roles[p.id]||{};
   const rows=admin?h('p',{class:'muted',style:'margin:0;font-size:13px'},'Amministratore: è direttore di tutte e tre le testate e gestisce tutta la squadra.')
     :h('div',{class:'troles'},TK.map(t=>{const can=isDirT(t);const cur=rs[t]||'';
-      const sel=h('select',{id:'tr-'+p.id+'-'+t,'aria-label':'Ruolo di '+p.name+' in '+TESTATE[t].name,disabled:!can||null,onchange:e=>setTRole(p,t,e.target.value)},
+      const sel=h('select',{id:'tr-'+p.id+'-'+t,'aria-label':'Ruolo di '+p.name+' in '+TESTATE[t].name,disabled:(!can||!S.rolesReady)||null,onchange:e=>setTRole(p,t,e.target.value)},
         TRUOLI.map(([k,l])=>h('option',{value:k,selected:cur===k||null},l)));
       return h('label',{class:'trole t-'+t+(cur?' on':'')},h('span',{class:'tchip t-'+t},TESTATE[t].short),sel)}));
   let access=null;
@@ -144,7 +146,7 @@ function renderSquadra(){if(!S.me.isDir)return h('p',{class:'muted'},'Questa sez
     h('div',{class:'agenda'},h('div',{class:'eyebrow'},'Come invitare un collega'),
       h('p',{style:'margin:8px 0 10px'},'Mandagli il link della redazione. Si iscrive con la sua email, compare qui come "In attesa" e tu scegli il suo ruolo in ciascuna testata.'),
       h('div',{class:'install'},h('code',{class:'mono',style:'overflow-wrap:anywhere'},link),h('button',{class:'btn sm',onclick:()=>{navigator.clipboard&&navigator.clipboard.writeText(link).then(()=>toast('Link copiato'),()=>toast('Copia il link selezionandolo'))}},'Copia link'))),
-    S.me.isAdmin?null:h('div',{class:'banner'},'Puoi cambiare i ruoli di: ',mineT.map(t=>tchip(t))),
+    !S.rolesReady?h('div',{class:'banner warn'},'I ruoli per testata si stanno attivando: per ora ognuno ha lo stesso ruolo in tutte le testate.'):S.me.isAdmin?null:h('div',{class:'banner'},'Puoi cambiare i ruoli di: ',mineT.map(t=>tchip(t))),
     h('div',{class:'team'},team.map(memberCard)),
     h('p',{class:'muted',style:'margin-top:14px;font-size:13px'},'Tutti vedono tutte le testate. Lettore: legge e basta. Redattore: in quella testata scrive, corregge, lascia note, carica foto e vocali. Direttore: in più pubblica e gestisce i ruoli di quella testata. Amministratore: tutto, su tutte le testate.'))}
 /* ---------- profilo e installazione ---------- */
